@@ -13,6 +13,7 @@ import Register from "./pages/Register";
 import VerifyEmail from "./pages/VerifyEmail";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import AdminLogin from "./pages/admin/Login";
 
 // Client Pages
 import ClientDashboard from "./pages/client/Dashboard";
@@ -37,6 +38,7 @@ const App = () => (
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/admin/login" element={<AdminLogin />} />
           
           {/* Client Routes */}
           <Route path="/client/dashboard" element={<ClientDashboard />} />
