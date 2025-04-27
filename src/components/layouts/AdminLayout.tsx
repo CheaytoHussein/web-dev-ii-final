@@ -56,7 +56,7 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
           },
         });
 
-        if (!response.ok) {
+        if (!response.ok) { 
           throw new Error("Failed to fetch admin data");
         }
 
