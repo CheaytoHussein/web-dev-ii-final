@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -20,6 +19,15 @@ import ClientDashboard from "./pages/client/Dashboard";
 import ClientDeliveries from "./pages/client/Deliveries";
 import NewDelivery from "./pages/client/NewDelivery";
 import DeliveryDetails from "./pages/client/DeliveryDetails";
+import ClientProfile from "./pages/client/Profile.tsx";
+import ClientPayments from "./pages/client/Payments.tsx";
+import FindDrivers from "./pages/client/FindDrivers.tsx";
+
+// Driver Pages
+import DriverDashboard from "./pages/driver/Dashboard.tsx";
+
+// Admin Pages
+import AdminDashboard from "./pages/admin/Dashboard.tsx";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +53,15 @@ const App = () => (
           <Route path="/client/deliveries" element={<ClientDeliveries />} />
           <Route path="/client/deliveries/new" element={<NewDelivery />} />
           <Route path="/client/deliveries/:id" element={<DeliveryDetails />} />
+          <Route path="/client/profile" element={<ClientProfile />} />
+          <Route path="/client/payments" element={<ClientPayments />} />
+          <Route path="/client/find-drivers" element={<FindDrivers />} />
+          
+          {/* Driver Routes */}
+          <Route path="/driver/dashboard" element={<DriverDashboard />} />
+          
+          {/* Admin Routes */}
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

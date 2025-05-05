@@ -13,27 +13,14 @@ class RouteServiceProvider extends ServiceProvider
     public function boot(): void
     {
         parent::boot();
-    }
 
-    /**
-     * Define the routes for the application.
-     */
-    public function map(): void
-    {
-        $this->mapApiRoutes();
-        $this->mapWebRoutes();
-    }
+        $this->routes(function () {
+            Route::middleware('api')
+                ->prefix('api')
+                ->group(base_path('routes/api.php'));
 
-    protected function mapWebRoutes(): void
-    {
-        Route::middleware('web')
-            ->group(base_path('routes/web.php'));
-    }
-
-    protected function mapApiRoutes(): void
-    {
-        Route::prefix('api')
-            ->middleware('api')
-            ->group(base_path('routes/api.php'));
+            Route::middleware('web')
+                ->group(base_path('routes/web.php'));
+        });
     }
 }

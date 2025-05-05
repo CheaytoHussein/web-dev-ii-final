@@ -22,48 +22,54 @@ const Login = () => {
     setLoading(true);
     
     try {
-      // API call to Laravel backend
-      const response = await fetch("http://localhost:8000/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          password,
-          user_type: userType
-        }),
-      });
-
-      const data = await response.json();
-      
-      if (response.ok) {
-        localStorage.setItem("auth_token", data.token);
-        localStorage.setItem("user_type", userType);
-        
-        toast({
-          title: "Login successful",
-          description: "You have been logged in successfully",
+        // First call CSRF cookie endpoint
+        await fetch("http://localhost:8000/sanctum/csrf-cookie", {
+            credentials: "include",
         });
+
+        // Then call login
+        const response = await fetch("http://localhost:8000/api/auth/login", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            },
+            credentials: "include",
+            body: JSON.stringify({
+                email,
+                password,
+                user_type: userType,
+            }),
+        });
+
+        const data = await response.json();
         
-        // Redirect based on user type
-        if (userType === "client") {
-          navigate("/client/dashboard");
+        if (response.ok) {
+            localStorage.setItem("auth_token", data.token);
+            localStorage.setItem("user_type", userType);
+            
+            toast({
+                title: "Login successful",
+                description: "You have been logged in successfully",
+            });
+            
+            if (userType === "client") {
+                navigate("/client/dashboard");
+            } else {
+                navigate("/driver/dashboard");
+            }
         } else {
-          navigate("/driver/dashboard");
+            throw new Error(data.message || "Login failed");
         }
-      } else {
-        throw new Error(data.message || "Login failed");
-      }
     } catch (error) {
-      console.error("Login failed:", error);
-      toast({
-        title: "Login failed",
-        description: error instanceof Error ? error.message : "Please check your credentials and try again",
-        variant: "destructive",
-      });
+        console.error("Login failed:", error);
+        toast({
+            title: "Login failed",
+            description: error instanceof Error ? error.message : "Please check your credentials and try again",
+            variant: "destructive",
+        });
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
   };
 

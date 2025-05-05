@@ -73,27 +73,77 @@ class DeliveryController extends Controller
         ]);
     }
 
-    /**
-     * Get available drivers
-     */
     public function getAvailableDrivers(Request $request)
     {
-        // In a real application, you might filter by proximity to pickup location
-        $drivers = User::where('user_type', 'driver')
-            ->whereHas('driverProfile', function($query) {
-                $query->where('is_available', true)
-                      ->where('is_verified', true);
+        $validator = Validator::make($request->all(), [
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
+            'radius' => 'nullable|numeric|min:1|max:50',
+            'vehicle_type' => 'nullable|string',
+        ]);
+        
+        if ($validator->fails()) {
+            return response()->json(['message' => $validator->errors()->first()], 422);
+        }
+        
+        // Get available and verified drivers
+        $query = User::where('user_type', 'driver')
+            ->whereHas('driverProfile', function($q) use ($request) {
+                $q->where('is_available', true)
+                  ->where('is_verified', true);
+                
+                if ($request->vehicle_type) {
+                    $q->where('vehicle_type', $request->vehicle_type);
+                }
             })
-            ->with('driverProfile')
-            ->get()
-            ->map(function($driver) {
+            ->with(['driverProfile']);
+        
+        $drivers = $query->get();
+        
+        // Calculate distance if coordinates provided
+        if ($request->latitude && $request->longitude) {
+            $drivers = $drivers->map(function($driver) use ($request) {
+                // Simple distance calculation (in real app, use Haversine formula)
+                $distance = 0;
+                if ($driver->driverProfile->latitude && $driver->driverProfile->longitude) {
+                    $distance = $this->calculateDistance(
+                        $request->latitude, 
+                        $request->longitude,
+                        $driver->driverProfile->latitude,
+                        $driver->driverProfile->longitude
+                    );
+                } else {
+                    // Random distance for demo
+                    $distance = rand(1, 10);
+                }
+                
                 return [
                     'id' => $driver->id,
                     'name' => $driver->name,
                     'rating' => $driver->driverProfile->rating,
                     'vehicle_type' => $driver->driverProfile->vehicle_type,
+                    'vehicle_model' => $driver->driverProfile->vehicle_model,
+                    'profile_picture' => $driver->driverProfile->profile_picture,
+                    'distance' => round($distance, 1),
+                    'location' => [
+                        'lat' => (float)$driver->driverProfile->latitude,
+                        'lng' => (float)$driver->driverProfile->longitude,
+                    ],
+                    'completedDeliveries' => $driver->driverDeliveries()->where('status', 'delivered')->count(),
+                    'isAvailable' => true,
                 ];
             });
+            
+            // Filter by radius
+            if ($request->radius) {
+                $drivers = $drivers->filter(function($driver) use ($request) {
+                    return $driver['distance'] <= $request->radius;
+                });
+            }
+            
+            // Sort by distance
+            $drivers = $drivers->sortBy('distance')->values();
+        }
         
         return response()->json([
             'drivers' => $drivers
@@ -137,5 +187,18 @@ class DeliveryController extends Controller
                 ];
             }),
         ]);
+    }
+
+    private function calculateDistance($lat1, $lon1, $lat2, $lon2)
+    {
+        // Simple distance calculation for demo purposes
+        // In production, use Haversine formula for accurate distance
+        $latDiff = abs($lat1 - $lat2);
+        $lonDiff = abs($lon1 - $lon2);
+        
+        // Very simplified calculation - just for demo
+        $distance = sqrt(($latDiff * $latDiff) + ($lonDiff * $lonDiff)) * 111.2; // rough miles conversion
+        
+        return $distance;
     }
 }

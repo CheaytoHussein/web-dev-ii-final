@@ -146,7 +146,7 @@ const ClientDashboard = () => {
                       <MapPin className="h-4 w-4 text-muted-foreground mr-2" />
                       <span>3 drivers available near you</span>
                     </div>
-                    <Button variant="ghost" size="sm" onClick={() => navigate("/client/drivers")}>
+                    <Button variant="ghost" size="sm" onClick={() => navigate("/client/find-drivers")}>
                       Find Drivers
                     </Button>
                   </div>
