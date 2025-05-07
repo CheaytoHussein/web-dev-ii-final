@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from "react";
 import { toast } from "@/components/ui/use-toast";
 
@@ -10,19 +9,19 @@ interface GoogleMapComponentProps {
   height?: string;
 }
 
-const GoogleMapComponent = ({ 
-  pickupAddress, 
+const GoogleMapComponent = ({
+  pickupAddress,
   deliveryAddress,
   driverLocation,
   isLive = false,
-  height = "400px" 
+  height = "400px",
 }: GoogleMapComponentProps) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const directionsRendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
   const driverMarkerRef = useRef<google.maps.Marker | null>(null);
-  
+
   useEffect(() => {
     // Load Google Maps API script
     const loadGoogleMapsApi = () => {
@@ -32,8 +31,8 @@ const GoogleMapComponent = ({
       }
 
       // This would be replaced with actual API key from environment variables
-      const apiKey = "GOOGLE_MAPS_API_KEY";
-      
+      const apiKey = "AIzaSyB2JuZEgEc3CFQIPRofW4cQuLWTtxQZjsc";
+
       const script = document.createElement("script");
       script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
       script.async = true;
@@ -46,7 +45,7 @@ const GoogleMapComponent = ({
           variant: "destructive",
         });
       };
-      
+
       document.head.appendChild(script);
     };
 
@@ -68,7 +67,7 @@ const GoogleMapComponent = ({
           streetViewControl: false,
           fullscreenControl: true,
         });
-        
+
         // Initialize directions renderer
         directionsRendererRef.current = new google.maps.DirectionsRenderer({
           suppressMarkers: isLive, // Suppress default markers when in live mode
@@ -78,10 +77,10 @@ const GoogleMapComponent = ({
             strokeOpacity: 0.7,
           },
         });
-        
+
         directionsRendererRef.current.setMap(mapInstanceRef.current);
       }
-      
+
       // If we have both addresses, get directions
       if (pickupAddress && deliveryAddress) {
         calculateRoute();
@@ -101,10 +100,7 @@ const GoogleMapComponent = ({
     if (!mapLoaded || !mapInstanceRef.current || !driverLocation) return;
 
     try {
-      const driverLatLng = new google.maps.LatLng(
-        driverLocation.lat,
-        driverLocation.lng
-      );
+      const driverLatLng = new google.maps.LatLng(driverLocation.lat, driverLocation.lng);
 
       if (!driverMarkerRef.current) {
         // Create driver marker if it doesn't exist
@@ -137,10 +133,10 @@ const GoogleMapComponent = ({
 
   const calculateRoute = () => {
     if (!pickupAddress || !deliveryAddress) return;
-    
+
     try {
       const directionsService = new google.maps.DirectionsService();
-      
+
       directionsService.route(
         {
           origin: pickupAddress,
@@ -166,13 +162,13 @@ const GoogleMapComponent = ({
   };
 
   return (
-    <div 
-      ref={mapRef} 
-      style={{ 
-        height, 
-        width: "100%", 
+    <div
+      ref={mapRef}
+      style={{
+        height,
+        width: "100%",
         borderRadius: "0.375rem", // rounded-md
-        overflow: "hidden"
+        overflow: "hidden",
       }}
     >
       {!mapLoaded && (
