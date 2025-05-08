@@ -18,7 +18,7 @@ class DeliveryController extends Controller
             'pickup_address' => 'required|string',
             'delivery_address' => 'required|string',
             'package_size' => 'required|in:small,medium,large,extra_large',
-            'package_weight' => 'required|numeric',
+            'package_weight' =>  'required|numeric',
             'delivery_type' => 'required|in:standard,express,economy',
         ]);
         
