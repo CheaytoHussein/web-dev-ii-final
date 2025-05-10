@@ -177,11 +177,11 @@ const DriverLayout = ({ children }: DriverLayoutProps) => {
 
   const navLinks = [
     { path: "/driver/dashboard", label: "Dashboard", icon: <Package className="h-5 w-5" /> },
-    { path: "/driver/deliveries", label: "Deliveries", icon: <Package className="h-5 w-5" /> },
+    { path: "/driver/DeliveriesPage", label: "Deliveries", icon: <Package className="h-5 w-5" /> },
     { path: "/driver/schedule", label: "Schedule", icon: <Clock className="h-5 w-5" /> },
-    { path: "/driver/earnings", label: "Earnings", icon: <CreditCard className="h-5 w-5" /> },
+    { path: "/driver/EarningsPage", label: "Earnings", icon: <CreditCard className="h-5 w-5" /> },
     { path: "/driver/profile", label: "Profile", icon: <User className="h-5 w-5" /> },
-    { path: "/driver/settings", label: "Settings", icon: <Settings className="h-5 w-5" /> },
+    { path: "/driver/SettingsPage", label: "Settings", icon: <Settings className="h-5 w-5" /> },
   ];
 
   if (loading) {
@@ -280,7 +280,7 @@ const DriverLayout = ({ children }: DriverLayoutProps) => {
                   <CreditCard className="h-4 w-4 mr-2" />
                   Earnings
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("/driver/settings")}>
+                <DropdownMenuItem onClick={() => navigate("/driver/SettingsPage")}>
                   <Settings className="h-4 w-4 mr-2" />
                   Settings
                 </DropdownMenuItem>

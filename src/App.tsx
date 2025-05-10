@@ -25,6 +25,13 @@ import FindDrivers from "./pages/client/FindDrivers.tsx";
 
 // Driver Pages
 import DriverDashboard from "./pages/driver/Dashboard.tsx";
+import DriverProfile from "./pages/driver/Profile.tsx";
+import DeliveriesPage from '@/pages/driver/DeliveriesPage';
+import EarningsPage from '@/pages/driver/EarningsPage';
+import DeliveryDetailPage from './pages/driver/DeliveryDetailPage';
+import UpdateStatusPage from './pages/driver/UpdateStatusPage';  
+import SettingsPage from './pages/driver/SettingsPage';  // Correct case
+
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/Dashboard.tsx";
@@ -59,6 +66,15 @@ const App = () => (
           
           {/* Driver Routes */}
           <Route path="/driver/dashboard" element={<DriverDashboard />} />
+          <Route path="/driver/profile" element={<DriverProfile />} />
+          <Route path="/driver/DeliveriesPage" element={<DeliveriesPage />} />
+          <Route path="/driver/EarningsPage" element={<EarningsPage />} />
+          <Route path="/driver/DeliveryDetailPage" element={<DeliveryDetailPage />} />
+          <Route path="/driver/UpdateStatusPage" element={<UpdateStatusPage />} />
+          <Route path="/driver/SettingsPage" element={<SettingsPage />} />
+
+
+
           
           {/* Admin Routes */}
           <Route path="/admin/dashboard" element={<AdminDashboard />} />

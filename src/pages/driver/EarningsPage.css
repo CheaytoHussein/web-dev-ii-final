@@ -1,0 +1,52 @@
+.earnings-page {
+  padding: 20px;
+}
+
+.earnings-summary {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 30px;
+}
+
+.earnings-card {
+  background-color: #f4f4f4;
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+  width: 23%;
+}
+
+.deliveries-stats {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 30px;
+}
+
+.deliveries-card {
+  background-color: #f4f4f4;
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+  width: 23%;
+}
+
+.recent-deliveries {
+  margin-top: 30px;
+}
+
+.recent-deliveries table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+.recent-deliveries th,
+.recent-deliveries td {
+  padding: 10px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+.recent-deliveries th {
+  background-color: #f4f4f4;
+}
