@@ -1,0 +1,107 @@
+/* Delivery Detail Page Styles */
+.delivery-detail-page {
+  padding: 30px;
+  font-family: 'Arial', sans-serif;
+  background-color: #f4f7fa;
+  min-height: 100vh;
+}
+
+.delivery-detail-card {
+  background-color: #fff;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin-top: 30px;
+  width: 60%;
+  margin: 0 auto;
+}
+
+h1 {
+  font-size: 2.2rem;
+  margin-bottom: 20px;
+  color: #333;
+  text-align: center;
+}
+
+h2 {
+  font-size: 1.6rem;
+  color: #007bff;
+  margin-bottom: 15px;
+}
+
+.detail-item {
+  margin-bottom: 15px;
+  font-size: 1.1rem;
+  color: #555;
+}
+
+strong {
+  font-weight: bold;
+  color: #333;
+}
+
+/* Add some space and separation between each detail item */
+.detail-item {
+  padding: 10px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.detail-item:hover {
+  background-color: #f1f1f1;
+  transition: background-color 0.3s;
+}
+
+/* Create a card-like effect for client details */
+.client-details {
+  margin-top: 30px;
+  padding: 20px;
+  background-color: #f1f7fb;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.client-details h3 {
+  font-size: 1.3rem;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.client-details p {
+  font-size: 1rem;
+  color: #666;
+}
+
+.price {
+  font-size: 1.4rem;
+  color: #000000;
+  font-weight: bold;
+}
+
+.created-at {
+  font-size: 0.95rem;
+  color: #777;
+  margin-top: 20px;
+  font-style: italic;
+  text-align: right;
+}
+
+/* Add some responsive design */
+@media (max-width: 768px) {
+  .delivery-detail-card {
+    width: 90%;
+  }
+
+  h1 {
+    font-size: 1.8rem;
+  }
+
+  h2 {
+    font-size: 1.4rem;
+  }
+
+  .detail-item {
+    font-size: 1rem;
+  }
+}

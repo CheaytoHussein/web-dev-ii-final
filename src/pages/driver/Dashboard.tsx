@@ -148,6 +148,7 @@ const DriverDashboard = () => {
     setChatClientName(clientName);
     setIsChatOpen(true);
   };
+  
 
   if (loading) {
     return (
@@ -220,7 +221,7 @@ const DriverDashboard = () => {
               </div>
             </CardContent>
             <CardFooter className="pt-0">
-              <Button variant="outline" className="w-full" onClick={() => navigate('/driver/earnings')}>
+              <Button variant="outline" className="w-full" onClick={() => navigate('/driver/EarningsPage')}>
                 <TrendingUp className="w-4 h-4 mr-2" /> View Earnings
               </Button>
             </CardFooter>
@@ -270,7 +271,7 @@ const DriverDashboard = () => {
               </div>
             </CardContent>
             <CardFooter className="pt-0">
-              <Button variant="outline" className="w-full" onClick={() => navigate('/driver/deliveries')}>
+              <Button variant="outline" className="w-full" onClick={() => navigate('/driver/DeliveriesPage')}>
                 <Truck className="w-4 h-4 mr-2" /> View All Deliveries
               </Button>
             </CardFooter>
@@ -360,12 +361,15 @@ const DriverDashboard = () => {
                     </div>
                     
                     <div className="flex flex-wrap gap-4 mt-6">
-                      <Button onClick={() => navigate(`/driver/deliveries/${dashboardData.recentDeliveries[0].id}`)}>
-                        View Details
-                      </Button>
-                      <Button variant="outline">
-                        Update Status
-                      </Button>
+                      <Button onClick={() => navigate('/driver/DeliveryDetailPage')}>
+                          View Details
+                            </Button>
+
+                      <Button onClick={() => navigate(`/driver/UpdateStatusPage`)}
+>
+                         Update Status
+                            </Button>
+
                     </div>
                   </div>
                   
@@ -428,7 +432,7 @@ const DriverDashboard = () => {
                         <Button 
                           variant="ghost" 
                           size="sm"
-                          onClick={() => navigate(`/driver/deliveries/${delivery.id}`)}
+                          onClick={() => navigate(`/driver/DeliveryDetailPage`)}
                         >
                           View Details
                         </Button>
@@ -445,7 +449,7 @@ const DriverDashboard = () => {
             )}
           </CardContent>
           <CardFooter className="flex justify-center border-t pt-4">
-            <Button variant="outline" onClick={() => navigate('/driver/deliveries')}>
+            <Button variant="outline" onClick={() => navigate('/driver/DeliveriesPage')}>
               View All Deliveries
             </Button>
           </CardFooter>
