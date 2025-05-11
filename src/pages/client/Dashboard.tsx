@@ -17,7 +17,6 @@ const ClientDashboard = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch dashboard data from API
     const fetchDashboard = async () => {
       try {
         const token = localStorage.getItem("auth_token");
@@ -26,21 +25,42 @@ const ClientDashboard = () => {
           return;
         }
 
-        const response = await fetch("http://localhost:8000/api/client/dashboard", {
+        // Fetch user to determine role
+        const userRes = await fetch("http://localhost:8000/api/auth/user", {
           headers: {
-            "Authorization": `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
           },
         });
 
-        if (!response.ok) {
+        if (!userRes.ok) {
+          throw new Error("Failed to fetch user info");
+        }
+
+        const user = await userRes.json();
+
+        const endpoint =
+            user.user_type === "admin"
+                ? "http://localhost:8000/api/admin/dashboard"
+                : "http://localhost:8000/api/client/dashboard";
+
+        // Fetch the correct dashboard data
+        const dashboardRes = await fetch(endpoint, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!dashboardRes.ok) {
           throw new Error("Failed to fetch dashboard data");
         }
 
-        const data = await response.json();
+        const data = await dashboardRes.json();
+        console.log(data);
+
         setDeliveries({
           active: data.active_deliveries || 0,
           completed: data.completed_deliveries || 0,
-          pending: data.pending_deliveries || 0
+          pending: data.pending_deliveries || 0,
         });
       } catch (error) {
         console.error("Dashboard fetch error:", error);
@@ -56,6 +76,8 @@ const ClientDashboard = () => {
 
     fetchDashboard();
   }, [navigate]);
+
+
 
   const handleCreateDelivery = () => {
     navigate("/client/deliveries/new");

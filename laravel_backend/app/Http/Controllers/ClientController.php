@@ -18,36 +18,36 @@ class ClientController extends Controller
     public function getDashboard(Request $request)
     {
         $user = $request->user();
-        
+
         if (!$user->isClient()) {
             return response()->json(['message' => 'Unauthorized access'], 403);
         }
-        
+
         // Get delivery statistics
         $activeDeliveries = $user->clientDeliveries()
             ->whereIn('status', ['pending', 'accepted', 'picked_up', 'in_transit'])
             ->count();
-        
+
         $completedDeliveries = $user->clientDeliveries()
             ->where('status', 'delivered')
             ->count();
-        
+
         $pendingDeliveries = $user->clientDeliveries()
             ->where('status', 'pending')
             ->count();
-        
+
         // Get recent deliveries
         $recentDeliveries = $user->clientDeliveries()
             ->with('driver')
             ->orderBy('created_at', 'desc')
             ->limit(5)
             ->get();
-        
+
         // Get nearby drivers
         $nearbyDriversCount = User::where('user_type', 'driver')
             ->whereHas('driverProfile', function($query) {
                 $query->where('is_available', true)
-                      ->where('is_verified', true);
+                    ->where('is_verified', true);
             })
             ->count();
 
@@ -63,19 +63,42 @@ class ClientController extends Controller
     /**
      * Get all client deliveries
      */
+    /**
+     * Get all client deliveries
+     */
     public function getDeliveries(Request $request)
     {
         $user = $request->user();
-        
+
         if (!$user->isClient()) {
             return response()->json(['message' => 'Unauthorized access'], 403);
         }
-        
+
         $deliveries = $user->clientDeliveries()
+            ->with(['driver' => function($query) {
+                $query->select('id', 'name'); // Only select needed fields
+            }])
             ->orderBy('created_at', 'desc')
-            ->get();
-        
-        return response()->json(['deliveries' => $deliveries]);
+            ->get([
+                'id',
+                'tracking_number',
+                'pickup_address',
+                'delivery_address',
+                'recipient_name',
+                'status',
+                'created_at',
+                'price',
+                'package_size',
+                'package_weight',
+                'delivery_date',
+                'delivery_time',
+                'driver_id'
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'deliveries' => $deliveries
+        ]);
     }
 
     /**
@@ -84,21 +107,21 @@ class ClientController extends Controller
     public function getDelivery(Request $request, $id)
     {
         $user = $request->user();
-        
+
         if (!$user->isClient()) {
             return response()->json(['message' => 'Unauthorized access'], 403);
         }
-        
+
         $delivery = $user->clientDeliveries()
             ->with(['driver', 'driver.driverProfile', 'statusHistory' => function($query) {
                 $query->orderBy('created_at', 'desc');
             }])
             ->find($id);
-        
+
         if (!$delivery) {
             return response()->json(['message' => 'Delivery not found'], 404);
         }
-        
+
         return response()->json(['delivery' => $delivery]);
     }
 
@@ -108,11 +131,11 @@ class ClientController extends Controller
     public function createDelivery(Request $request)
     {
         $user = $request->user();
-        
+
         if (!$user->isClient()) {
             return response()->json(['message' => 'Unauthorized access'], 403);
         }
-        
+
         $validator = Validator::make($request->all(), [
             'pickup_address' => 'required|string',
             'pickup_contact' => 'required|string',
@@ -125,11 +148,11 @@ class ClientController extends Controller
             'delivery_type' => 'required|in:standard,express,economy',
             'price' => 'required|numeric|min:0',
         ]);
-        
+
         if ($validator->fails()) {
             return response()->json(['message' => $validator->errors()->first()], 422);
         }
-        
+
         // Create delivery
         $delivery = new Delivery([
             'client_id' => $user->id,
@@ -152,20 +175,20 @@ class ClientController extends Controller
             'status' => 'pending',
             'payment_status' => 'pending',
         ]);
-        
+
         // Assign driver if provided
         if ($request->driver_id) {
             $driver = User::where('id', $request->driver_id)
                 ->where('user_type', 'driver')
                 ->first();
-                
+
             if ($driver) {
                 $delivery->driver_id = $driver->id;
             }
         }
-        
+
         $delivery->save();
-        
+
         // Create initial status
         DeliveryStatus::create([
             'delivery_id' => $delivery->id,
@@ -183,11 +206,11 @@ class ClientController extends Controller
                 'type' => 'delivery_assigned',
                 'reference_id' => (string)$delivery->id,
             ]);
-            
+
             // In a real application, you would also send a push notification
             // using the driver's device_token
         }
-        
+
         return response()->json([
             'message' => 'Delivery created successfully',
             'id' => $delivery->id,
@@ -201,28 +224,28 @@ class ClientController extends Controller
     public function cancelDelivery(Request $request, $id)
     {
         $user = $request->user();
-        
+
         if (!$user->isClient()) {
             return response()->json(['message' => 'Unauthorized access'], 403);
         }
-        
+
         $delivery = $user->clientDeliveries()->find($id);
-        
+
         if (!$delivery) {
             return response()->json(['message' => 'Delivery not found'], 404);
         }
-        
+
         // Check if the delivery can be cancelled
         if (!in_array($delivery->status, ['pending', 'accepted'])) {
             return response()->json([
                 'message' => 'Delivery cannot be cancelled at this stage'
             ], 400);
         }
-        
+
         // Update delivery status
         $delivery->status = 'cancelled';
         $delivery->save();
-        
+
         // Add status history
         DeliveryStatus::create([
             'delivery_id' => $delivery->id,
@@ -230,7 +253,7 @@ class ClientController extends Controller
             'location' => 'N/A',
             'notes' => 'Cancelled by client',
         ]);
-        
+
         // Notify driver if assigned
         if ($delivery->driver_id) {
             Notification::create([
@@ -240,10 +263,10 @@ class ClientController extends Controller
                 'type' => 'delivery_cancelled',
                 'reference_id' => (string)$delivery->id,
             ]);
-            
+
             // In a real application, you would also send a push notification
         }
-        
+
         return response()->json([
             'message' => 'Delivery cancelled successfully'
         ]);
@@ -255,13 +278,14 @@ class ClientController extends Controller
     public function getNotifications(Request $request)
     {
         $user = $request->user();
-        
+
         $notifications = $user->notifications()
             ->orderBy('created_at', 'desc')
             ->get();
-        
+
         return response()->json([
             'notifications' => $notifications
         ]);
     }
+
 }

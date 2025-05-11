@@ -21,14 +21,14 @@ class DeliveryController extends Controller
             'package_weight' => 'required|numeric',
             'delivery_type' => 'required|in:standard,express,economy',
         ]);
-        
+
         if ($validator->fails()) {
             return response()->json(['message' => $validator->errors()->first()], 422);
         }
-        
+
         // In a real application, this would call a third-party API like Google Distance Matrix
         // to calculate the distance and then apply pricing logic
-        
+
         // For demo purposes, we'll use a simple pricing model
         $basePrices = [
             'small' => 10.00,
@@ -36,32 +36,32 @@ class DeliveryController extends Controller
             'large' => 20.00,
             'extra_large' => 30.00,
         ];
-        
+
         $typeMultipliers = [
             'economy' => 0.8,
             'standard' => 1.0,
             'express' => 1.5,
         ];
-        
+
         // Get base price for package size
         $basePrice = $basePrices[$request->package_size];
-        
+
         // Add weight charge ($1 per kg after 1kg)
         $weightCharge = max(0, $request->package_weight - 1) * 1.00;
-        
+
         // Apply delivery type multiplier
         $typeMultiplier = $typeMultipliers[$request->delivery_type];
-        
+
         // Calculate simulated distance-based charge
         // In production, this would be replaced with actual distance calculation
         $distanceCharge = 5.00;
-        
+
         // Calculate total price
         $totalPrice = ($basePrice + $weightCharge + $distanceCharge) * $typeMultiplier;
-        
+
         // Round to 2 decimal places
         $totalPrice = round($totalPrice, 2);
-        
+
         return response()->json([
             'price' => $totalPrice,
             'breakdown' => [
@@ -81,25 +81,25 @@ class DeliveryController extends Controller
             'radius' => 'nullable|numeric|min:1|max:50',
             'vehicle_type' => 'nullable|string',
         ]);
-        
+
         if ($validator->fails()) {
             return response()->json(['message' => $validator->errors()->first()], 422);
         }
-        
+
         // Get available and verified drivers
         $query = User::where('user_type', 'driver')
             ->whereHas('driverProfile', function($q) use ($request) {
                 $q->where('is_available', true)
-                  ->where('is_verified', true);
-                
+                    ->where('is_verified', true);
+
                 if ($request->vehicle_type) {
                     $q->where('vehicle_type', $request->vehicle_type);
                 }
             })
             ->with(['driverProfile']);
-        
+
         $drivers = $query->get();
-        
+
         // Calculate distance if coordinates provided
         if ($request->latitude && $request->longitude) {
             $drivers = $drivers->map(function($driver) use ($request) {
@@ -107,7 +107,7 @@ class DeliveryController extends Controller
                 $distance = 0;
                 if ($driver->driverProfile->latitude && $driver->driverProfile->longitude) {
                     $distance = $this->calculateDistance(
-                        $request->latitude, 
+                        $request->latitude,
                         $request->longitude,
                         $driver->driverProfile->latitude,
                         $driver->driverProfile->longitude
@@ -116,7 +116,7 @@ class DeliveryController extends Controller
                     // Random distance for demo
                     $distance = rand(1, 10);
                 }
-                
+
                 return [
                     'id' => $driver->id,
                     'name' => $driver->name,
@@ -133,18 +133,18 @@ class DeliveryController extends Controller
                     'isAvailable' => true,
                 ];
             });
-            
+
             // Filter by radius
             if ($request->radius) {
                 $drivers = $drivers->filter(function($driver) use ($request) {
                     return $driver['distance'] <= $request->radius;
                 });
             }
-            
+
             // Sort by distance
             $drivers = $drivers->sortBy('distance')->values();
         }
-        
+
         return response()->json([
             'drivers' => $drivers
         ]);
@@ -158,21 +158,21 @@ class DeliveryController extends Controller
         $validator = Validator::make($request->all(), [
             'tracking_number' => 'required|string',
         ]);
-        
+
         if ($validator->fails()) {
             return response()->json(['message' => $validator->errors()->first()], 422);
         }
-        
+
         $delivery = Delivery::where('tracking_number', $request->tracking_number)
             ->with(['statusHistory' => function($query) {
                 $query->orderBy('created_at', 'desc');
             }])
             ->first();
-        
+
         if (!$delivery) {
             return response()->json(['message' => 'Delivery not found'], 404);
         }
-        
+
         // Return limited information for public tracking
         return response()->json([
             'tracking_number' => $delivery->tracking_number,
@@ -195,10 +195,10 @@ class DeliveryController extends Controller
         // In production, use Haversine formula for accurate distance
         $latDiff = abs($lat1 - $lat2);
         $lonDiff = abs($lon1 - $lon2);
-        
+
         // Very simplified calculation - just for demo
         $distance = sqrt(($latDiff * $latDiff) + ($lonDiff * $lonDiff)) * 111.2; // rough miles conversion
-        
+
         return $distance;
     }
 }

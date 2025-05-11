@@ -23,6 +23,13 @@ import ClientProfile from "./pages/client/Profile.tsx";
 import ClientPayments from "./pages/client/Payments.tsx";
 import FindDrivers from "./pages/client/FindDrivers.tsx";
 
+
+
+
+
+
+
+
 // Driver Pages
 import DriverDashboard from "./pages/driver/Dashboard.tsx";
 
@@ -62,6 +69,7 @@ const App = () => (
           
           {/* Admin Routes */}
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
+
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

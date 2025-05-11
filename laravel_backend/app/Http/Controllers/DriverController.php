@@ -26,12 +26,12 @@ class DriverController extends Controller
         $driverProfile = $user->driverProfile;
         $completedDeliveries = $user->driverDeliveries()->where('status', 'delivered')->count();
         $activeDeliveries = $user->driverDeliveries()->whereIn('status', ['accepted', 'picked_up', 'in_transit'])->count();
-        
+
         // Calculate earnings for today and this week
         $todayEarnings = $user->driverEarnings()
             ->whereDate('created_at', Carbon::today())
             ->sum('amount');
-        
+
         $weekEarnings = $user->driverEarnings()
             ->whereBetween('created_at', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()])
             ->sum('amount');
@@ -77,7 +77,7 @@ class DriverController extends Controller
         $validator = Validator::make($request->all(), [
             'available' => 'required|boolean',
         ]);
-        
+
         if ($validator->fails()) {
             return response()->json(['message' => $validator->errors()->first()], 422);
         }
@@ -107,7 +107,7 @@ class DriverController extends Controller
             'latitude' => 'required|numeric|between:-90,90',
             'longitude' => 'required|numeric|between:-180,180',
         ]);
-        
+
         if ($validator->fails()) {
             return response()->json(['message' => $validator->errors()->first()], 422);
         }
@@ -136,13 +136,13 @@ class DriverController extends Controller
 
         $status = $request->query('status');
         $query = $user->driverDeliveries()->with(['client:id,name', 'payment:id,delivery_id,amount,status']);
-        
+
         if ($status) {
             $query->where('status', $status);
         }
-        
+
         $deliveries = $query->orderBy('created_at', 'desc')->paginate(10);
-        
+
         return response()->json($deliveries);
     }
 
@@ -166,7 +166,7 @@ class DriverController extends Controller
                 }
             ])
             ->findOrFail($id);
-        
+
         return response()->json([
             'delivery' => $delivery
         ]);
@@ -185,12 +185,12 @@ class DriverController extends Controller
 
         $delivery = Delivery::where('status', 'pending')
             ->findOrFail($id);
-        
+
         // Check if driver is verified and available
         if (!$user->driverProfile->is_verified) {
             return response()->json(['message' => 'Your account is not verified yet'], 400);
         }
-        
+
         if (!$user->driverProfile->is_available) {
             return response()->json(['message' => 'Please set your status to available first'], 400);
         }
@@ -234,13 +234,13 @@ class DriverController extends Controller
         }
 
         $delivery = $user->driverDeliveries()->findOrFail($id);
-        
+
         $validator = Validator::make($request->all(), [
             'status' => 'required|in:picked_up,in_transit,delivered',
             'notes' => 'nullable|string|max:500',
             'location' => 'nullable|string|max:255',
         ]);
-        
+
         if ($validator->fails()) {
             return response()->json(['message' => $validator->errors()->first()], 422);
         }
@@ -288,7 +288,7 @@ class DriverController extends Controller
             if ($payment) {
                 // Typically driver gets 80% of the payment
                 $driverShare = $payment->amount * 0.80;
-                
+
                 $user->driverEarnings()->create([
                     'delivery_id' => $delivery->id,
                     'amount' => $driverShare,
@@ -315,7 +315,7 @@ class DriverController extends Controller
         }
 
         $period = $request->query('period', 'week');
-        
+
         switch ($period) {
             case 'today':
                 $start = Carbon::today();
@@ -337,17 +337,17 @@ class DriverController extends Controller
                 $start = Carbon::now()->startOfWeek();
                 $end = Carbon::now()->endOfWeek();
         }
-        
+
         $earnings = $user->driverEarnings()
             ->with('delivery:id,tracking_number,pickup_address,delivery_address')
             ->whereBetween('created_at', [$start, $end])
             ->orderBy('created_at', 'desc')
             ->paginate(15);
-        
+
         $total = $user->driverEarnings()
             ->whereBetween('created_at', [$start, $end])
             ->sum('amount');
-        
+
         return response()->json([
             'earnings' => $earnings,
             'total' => $total,
@@ -369,7 +369,7 @@ class DriverController extends Controller
         $notifications = $user->notifications()
             ->orderBy('created_at', 'desc')
             ->paginate(20);
-        
+
         return response()->json([
             'notifications' => $notifications
         ]);
