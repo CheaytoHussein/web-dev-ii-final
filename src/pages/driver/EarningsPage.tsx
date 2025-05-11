@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './EarningsPage.css';
+import DriverLayout from '@/components/layouts/DriverLayout';
 
 const EarningsPage = () => {
-  // Mock data
   const mockData = {
     activeDeliveries: 1,
     completedDeliveries: 42,
@@ -35,85 +35,81 @@ const EarningsPage = () => {
     ]
   };
 
-  // UseEffect to load the mock data (can be replaced with actual API call)
   const [earningsData, setEarningsData] = useState(mockData);
-
   const { activeDeliveries, completedDeliveries, totalDeliveries, totalEarnings, todayEarnings, weeklyEarnings, pendingDeliveries, recentDeliveries } = earningsData;
-
   const averageEarnings = totalEarnings / totalDeliveries;
 
   return (
-    <div className="earnings-page">
-      <h1>Driver Earnings</h1>
-      {/* Earnings Overview */}
-      <div className="earnings-summary">
-        <div className="earnings-card">
-          <h2>Total Earnings</h2>
-          <p>${totalEarnings.toFixed(2)}</p>
-        </div>
-        <div className="earnings-card">
-          <h2>Today's Earnings</h2>
-          <p>${todayEarnings.toFixed(2)}</p>
-        </div>
-        <div className="earnings-card">
-          <h2>Weekly Earnings</h2>
-          <p>${weeklyEarnings.toFixed(2)}</p>
-        </div>
-        <div className="earnings-card">
-          <h2>Average Earnings/Delivery</h2>
-          <p>${averageEarnings.toFixed(2)}</p>
-        </div>
-      </div>
+      <DriverLayout>
+        <div className="earnings-page">
+          <h1>Driver Earnings</h1>
+          <div className="earnings-summary">
+            <div className="earnings-card">
+              <h2>Total Earnings</h2>
+              <p>${totalEarnings.toFixed(2)}</p>
+            </div>
+            <div className="earnings-card">
+              <h2>Today's Earnings</h2>
+              <p>${todayEarnings.toFixed(2)}</p>
+            </div>
+            <div className="earnings-card">
+              <h2>Weekly Earnings</h2>
+              <p>${weeklyEarnings.toFixed(2)}</p>
+            </div>
+            <div className="earnings-card">
+              <h2>Average Earnings/Delivery</h2>
+              <p>${averageEarnings.toFixed(2)}</p>
+            </div>
+          </div>
 
-      {/* Deliveries Stats */}
-      <div className="deliveries-stats">
-        <div className="deliveries-card">
-          <h2>Active Deliveries</h2>
-          <p>{activeDeliveries}</p>
-        </div>
-        <div className="deliveries-card">
-          <h2>Completed Deliveries</h2>
-          <p>{completedDeliveries}</p>
-        </div>
-        <div className="deliveries-card">
-          <h2>Pending Deliveries</h2>
-          <p>{pendingDeliveries}</p>
-        </div>
-        <div className="deliveries-card">
-          <h2>Total Deliveries</h2>
-          <p>{totalDeliveries}</p>
-        </div>
-      </div>
+          <div className="deliveries-stats">
+            <div className="deliveries-card">
+              <h2>Active Deliveries</h2>
+              <p>{activeDeliveries}</p>
+            </div>
+            <div className="deliveries-card">
+              <h2>Completed Deliveries</h2>
+              <p>{completedDeliveries}</p>
+            </div>
+            <div className="deliveries-card">
+              <h2>Pending Deliveries</h2>
+              <p>{pendingDeliveries}</p>
+            </div>
+            <div className="deliveries-card">
+              <h2>Total Deliveries</h2>
+              <p>{totalDeliveries}</p>
+            </div>
+          </div>
 
-      {/* Recent Deliveries */}
-      <div className="recent-deliveries">
-        <h2>Recent Deliveries</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Tracking Number</th>
-              <th>Status</th>
-              <th>Pickup Address</th>
-              <th>Delivery Address</th>
-              <th>Price ($)</th>
-              <th>Client</th>
-            </tr>
-          </thead>
-          <tbody>
-            {recentDeliveries.map((delivery) => (
-              <tr key={delivery.id}>
-                <td>{delivery.tracking_number}</td>
-                <td>{delivery.status}</td>
-                <td>{delivery.pickup_address}</td>
-                <td>{delivery.delivery_address}</td>
-                <td>{delivery.price.toFixed(2)}</td>
-                <td>{delivery.client.name}</td>
+          <div className="recent-deliveries">
+            <h2>Recent Deliveries</h2>
+            <table>
+              <thead>
+              <tr>
+                <th>Tracking Number</th>
+                <th>Status</th>
+                <th>Pickup Address</th>
+                <th>Delivery Address</th>
+                <th>Price ($)</th>
+                <th>Client</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+              </thead>
+              <tbody>
+              {recentDeliveries.map((delivery) => (
+                  <tr key={delivery.id}>
+                    <td>{delivery.tracking_number}</td>
+                    <td>{delivery.status}</td>
+                    <td>{delivery.pickup_address}</td>
+                    <td>{delivery.delivery_address}</td>
+                    <td>{delivery.price.toFixed(2)}</td>
+                    <td>{delivery.client.name}</td>
+                  </tr>
+              ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </DriverLayout>
   );
 };
 

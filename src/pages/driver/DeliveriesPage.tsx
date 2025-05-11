@@ -3,13 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Clock } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
+import DriverLayout from '@/components/layouts/DriverLayout';
 
 const DeliveriesPage = () => {
   const [deliveries, setDeliveries] = useState<any[]>([]);
-  const [filter, setFilter] = useState('all'); // State to manage the filter
+  const [filter, setFilter] = useState('all');
 
   useEffect(() => {
-    // Mock fetch for demonstration
     const mockDeliveries = [
       {
         id: 'del_12345',
@@ -129,66 +129,65 @@ const DeliveriesPage = () => {
         price: 23.40,
       }
     ];
-
     setDeliveries(mockDeliveries);
   }, []);
 
-  // Filter deliveries based on selected filter
   const filteredDeliveries = deliveries.filter(delivery => {
     if (filter === 'all') return true;
     return delivery.status === filter;
   });
 
   return (
-    <div className="min-h-screen py-6 px-4 md:px-8 bg-background">
-      <h1 className="text-2xl font-bold mb-6">All Deliveries</h1>
+      <DriverLayout>
+        <div className="min-h-screen py-6 px-4 md:px-8 bg-background">
+          <h1 className="text-2xl font-bold mb-6">All Deliveries</h1>
 
-      {/* Filter Dropdown */}
-      <div className="mb-6">
-        <label className="mr-4">Filter by Status:</label>
-        <select 
-          value={filter} 
-          onChange={(e) => setFilter(e.target.value)} 
-          className="p-2 border rounded-md"
-        >
-          <option value="all">All</option>
-          <option value="delivered">Delivered</option>
-          <option value="in_transit">In Transit</option>
-        </select>
-      </div>
+          <div className="mb-6">
+            <label className="mr-4">Filter by Status:</label>
+            <select
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                className="p-2 border rounded-md"
+            >
+              <option value="all">All</option>
+              <option value="delivered">Delivered</option>
+              <option value="in_transit">In Transit</option>
+            </select>
+          </div>
 
-      <div className="grid gap-4">
-        {filteredDeliveries.map(delivery => (
-          <Card key={delivery.id}>
-            <CardHeader className="pb-2 flex flex-col md:flex-row justify-between">
-              <div>
-                <CardTitle className="text-md">Tracking #{delivery.tracking_number}</CardTitle>
-                <CardDescription>
-                  {delivery.status === 'delivered' ? (
-                    <Badge className="bg-green-100 text-green-800">Delivered</Badge>
-                  ) : (
-                    <Badge className="bg-blue-100 text-blue-800">In Transit</Badge>
-                  )}
-                </CardDescription>
-              </div>
-              <div className="text-right text-sm text-muted-foreground mt-2 md:mt-0">
-                <Calendar className="inline w-4 h-4 mr-1" />
-                {format(new Date(delivery.created_at), 'PPP')}
-                <br />
-                <Clock className="inline w-4 h-4 mr-1" />
-                {formatDistanceToNow(new Date(delivery.created_at), { addSuffix: true })}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p><strong>Client:</strong> {delivery.client.name} ({delivery.client.phone})</p>
-              <p><strong>Pickup:</strong> {delivery.pickup_address}</p>
-              <p><strong>Drop-off:</strong> {delivery.delivery_address}</p>
-              <p><strong>Price:</strong> ${delivery.price.toFixed(2)}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
+          <div className="grid gap-4">
+            {filteredDeliveries.map(delivery => (
+                <Card key={delivery.id}>
+                  <CardHeader className="pb-2 flex flex-col md:flex-row justify-between">
+                    <div>
+                      <CardTitle className="text-md">Tracking #{delivery.tracking_number}</CardTitle>
+                      <CardDescription>
+                        {delivery.status === 'delivered' ? (
+                            <Badge className="bg-green-100 text-green-800">Delivered</Badge>
+                        ) : (
+                            <Badge className="bg-blue-100 text-blue-800">In Transit</Badge>
+                        )}
+                      </CardDescription>
+                    </div>
+                    <div className="text-right text-sm text-muted-foreground mt-2 md:mt-0">
+                      <Calendar className="inline w-4 h-4 mr-1" />
+                      {format(new Date(delivery.created_at), 'PPP')}
+                      <br />
+                      <Clock className="inline w-4 h-4 mr-1" />
+                      {formatDistanceToNow(new Date(delivery.created_at), { addSuffix: true })}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p><strong>Client:</strong> {delivery.client.name} ({delivery.client.phone})</p>
+                    <p><strong>Pickup:</strong> {delivery.pickup_address}</p>
+                    <p><strong>Drop-off:</strong> {delivery.delivery_address}</p>
+                    <p><strong>Price:</strong> ${delivery.price.toFixed(2)}</p>
+                  </CardContent>
+                </Card>
+            ))}
+          </div>
+        </div>
+      </DriverLayout>
   );
 };
 

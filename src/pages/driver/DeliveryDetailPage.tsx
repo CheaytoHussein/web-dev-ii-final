@@ -1,8 +1,8 @@
 import React from 'react';
 import './DeliveryDetailPage.css';
+import DriverLayout from '@/components/layouts/DriverLayout';
 
 const DeliveryDetailPage = () => {
-  // Hardcoded mock delivery data for this page
   const delivery = {
     tracking_number: 'TRK-12345',
     status: 'in_transit',
@@ -17,38 +17,37 @@ const DeliveryDetailPage = () => {
   };
 
   return (
-    <div className="delivery-detail-page">
-      <h1>Delivery Details</h1>
-      <div className="delivery-detail-card">
-        <h2>Tracking Number: {delivery.tracking_number}</h2>
-        <div className="detail-item">
-          <strong>Status:</strong> {delivery.status}
-        </div>
-        <div className="detail-item">
-          <strong>Pickup Address:</strong> {delivery.pickup_address}
-        </div>
-        <div className="detail-item">
-          <strong>Delivery Address:</strong> {delivery.delivery_address}
-        </div>
-        
-        {/* Client Information Card */}
-        <div className="client-details">
-          <h3>Client Information</h3>
-          <p><strong>Name:</strong> {delivery.client.name}</p>
-          <p><strong>Phone:</strong> {delivery.client.phone}</p>
-        </div>
+      <DriverLayout>
+        <div className="delivery-detail-page">
+          <h1 className="text-2xl font-bold text-center mb-6">Delivery Details</h1>
+          <div className="delivery-detail-card">
+            <h2>Tracking Number: {delivery.tracking_number}</h2>
+            <div className="detail-item">
+              <strong>Status:</strong> {delivery.status}
+            </div>
+            <div className="detail-item">
+              <strong>Pickup Address:</strong> {delivery.pickup_address}
+            </div>
+            <div className="detail-item">
+              <strong>Delivery Address:</strong> {delivery.delivery_address}
+            </div>
 
-        {/* Price */}
-        <div className="price">
-          <strong>Price:</strong> ${delivery.price.toFixed(2)}
+            <div className="client-details">
+              <h3>Client Information</h3>
+              <p><strong>Name:</strong> {delivery.client.name}</p>
+              <p><strong>Phone:</strong> {delivery.client.phone}</p>
+            </div>
+
+            <div className="price">
+              <strong>Price:</strong> ${delivery.price.toFixed(2)}
+            </div>
+
+            <div className="created-at">
+              <strong>Created At:</strong> {new Date(delivery.created_at).toLocaleString()}
+            </div>
+          </div>
         </div>
-        
-        {/* Created At Date */}
-        <div className="created-at">
-          <strong>Created At:</strong> {new Date(delivery.created_at).toLocaleString()}
-        </div>
-      </div>
-    </div>
+      </DriverLayout>
   );
 };
 
