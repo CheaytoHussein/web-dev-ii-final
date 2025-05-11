@@ -382,5 +382,44 @@ class AdminController extends Controller
             'notifications' => $notifications
         ]);
     }
+    /**
+     * Verify a driver
+     */
+    public function verifyDriver($id)
+    {
+        $user = User::where('user_type', 'driver')->find($id);
+
+        if (!$user || !$user->driverProfile) {
+            return response()->json(['message' => 'Driver not found.'], 404);
+        }
+
+        $user->driverProfile->is_verified = true;
+        $user->driverProfile->save();
+
+        return response()->json([
+            'message' => 'Driver verified successfully.',
+            'driver' => $user->load('driverProfile'),
+        ]);
+    }
+
+    /**
+     * Unverify a driver
+     */
+    public function unverifyDriver($id)
+    {
+        $user = User::where('user_type', 'driver')->find($id);
+
+        if (!$user || !$user->driverProfile) {
+            return response()->json(['message' => 'Driver not found.'], 404);
+        }
+
+        $user->driverProfile->is_verified = false;
+        $user->driverProfile->save();
+
+        return response()->json([
+            'message' => 'Driver unverified successfully.',
+            'driver' => $user->load('driverProfile'),
+        ]);
+    }
 
 }

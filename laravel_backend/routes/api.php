@@ -97,6 +97,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/deliveries/{id}', [AdminController::class, 'getDelivery'])->name('admin.deliveries.show');
         Route::get('/reports', [AdminController::class, 'getReports'])->name('admin.reports');
         Route::get('/notifications', [AdminController::class, 'getNotifications'])->name('admin.notifications');
+        Route::post('/drivers/{id}/verify', [AdminController::class, 'verifyDriver']);
+        Route::post('/drivers/{id}/unverify', [AdminController::class, 'unverifyDriver']);
         // In App.tsx or routes.tsx
 
 
