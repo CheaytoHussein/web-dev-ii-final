@@ -20,6 +20,34 @@ interface LiveChatProps {
   driverAvatar?: string;
 }
 
+const ChatBox = ({ currentUserId, selectedUserId, onReceiveMessage }) => {
+  useEffect(() => {
+    if (!selectedUserId) return;
+
+    const eventSource = new EventSource(`/api/chat/stream/${selectedUserId}`);
+
+    eventSource.onmessage = (event) => {
+      if (event.data) {
+        const parsed = JSON.parse(event.data);
+        onReceiveMessage(parsed.item);
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      console.error("SSE error:", error);
+      eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [selectedUserId]);
+
+  return null;
+};
+
+
+
 const LiveChat = ({
   isOpen,
   onClose,
