@@ -24,12 +24,12 @@ class ChatController extends Controller
     {
         $authUserRole = Auth::user()->role;
 
-        if ($authUserRole === 'buyer') {
-            $users = User::where('role', 'seller')->select('id', 'name')->get();
-        } elseif ($authUserRole === 'seller') {
-            $users = User::where('role', 'buyer')->select('id', 'name')->get();
+        if ($authUserRole === 'client') {
+            $users = User::where('role', 'client')->select('id', 'name')->get();
+        } elseif ($authUserRole === 'driver') {
+            $users = User::where('role', 'driver')->select('id', 'name')->get();
         } else {
-            $users = User::whereIn('role', ['buyer', 'seller'])->select('id', 'name')->get();
+            $users = User::whereIn('role', ['driver', 'client'])->select('id', 'name')->get();
         }
 
         return response()->json([
