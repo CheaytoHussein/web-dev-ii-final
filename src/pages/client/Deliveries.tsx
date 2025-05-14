@@ -27,6 +27,7 @@ interface Delivery {
     name: string;
   };
 }
+
 const ClientDeliveries = () => {
   const navigate = useNavigate();
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
@@ -37,7 +38,9 @@ const ClientDeliveries = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setLoading(true);
         const token = localStorage.getItem("auth_token");
+
         if (!token) {
           navigate("/login?type=client");
           return;
@@ -46,17 +49,15 @@ const ClientDeliveries = () => {
         const response = await fetch("http://localhost:8000/api/client/deliveries", {
           headers: {
             "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json",
             "Accept": "application/json"
           },
         });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Failed to fetch deliveries');
-        }
-
         const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || 'Failed to fetch deliveries');
+        }
 
         if (!data.success || !Array.isArray(data.deliveries)) {
           throw new Error('Invalid data format received from API');

@@ -85,6 +85,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/location', [DriverController::class, 'updateLocation'])->name('driver.location.update');
         Route::get('/earnings', [DriverController::class, 'getEarnings'])->name('driver.earnings');
         Route::get('/notifications', [DriverController::class, 'getNotifications'])->name('driver.notifications');
+
     });
 
     // ========== Admin Routes ==========

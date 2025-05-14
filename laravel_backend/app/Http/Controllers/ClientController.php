@@ -12,9 +12,7 @@ use Carbon\Carbon;
 
 class ClientController extends Controller
 {
-    /**
-     * Get client dashboard data
-     */
+
     public function getDashboard(Request $request)
     {
         $user = $request->user();
@@ -68,61 +66,153 @@ class ClientController extends Controller
      */
     public function getDeliveries(Request $request)
     {
-        $user = $request->user();
+        try {
+            $user = $request->user();
 
-        if (!$user->isClient()) {
-            return response()->json(['message' => 'Unauthorized access'], 403);
-        }
+            if (!$user || !$user->isClient()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access'
+                ], 403);
+            }
 
-        $deliveries = $user->clientDeliveries()
-            ->with(['driver' => function($query) {
-                $query->select('id', 'name'); // Only select needed fields
-            }])
-            ->orderBy('created_at', 'desc')
-            ->get([
-                'id',
-                'tracking_number',
-                'pickup_address',
-                'delivery_address',
-                'recipient_name',
-                'status',
-                'created_at',
-                'price',
-                'package_size',
-                'package_weight',
-                'delivery_date',
-                'delivery_time',
-                'driver_id'
+            $deliveries = $user->clientDeliveries()
+                ->with(['driver' => function($query) {
+                    $query->select('id', 'name');
+                }])
+                ->orderBy('created_at', 'desc')
+                ->get([
+                    'id',
+                    'tracking_number',
+                    'pickup_address',
+                    'delivery_address',
+                    'recipient_name',
+                    'status',
+                    'created_at',
+                    'price',
+                    'package_size',
+                    'package_weight',
+                    'delivery_date',
+                    'delivery_time',
+                    'driver_id'
+                ]);
+
+            return response()->json([
+                'success' => true,
+                'deliveries' => $deliveries->map(function ($delivery) {
+                    return [
+                        'id' => $delivery->id,
+                        'tracking_number' => $delivery->tracking_number,
+                        'pickup_address' => $delivery->pickup_address,
+                        'delivery_address' => $delivery->delivery_address,
+                        'recipient_name' => $delivery->recipient_name,
+                        'status' => $delivery->status,
+                        'created_at' => $delivery->created_at->toISOString(),
+                        'price' => (float)$delivery->price,
+                        'package_size' => $delivery->package_size,
+                        'package_weight' => (float)$delivery->package_weight,
+                        'delivery_date' => $delivery->delivery_date ? Carbon::parse($delivery->delivery_date)->toISOString() : null,
+                        'delivery_time' => $delivery->delivery_time,
+                        'driver_id' => $delivery->driver_id,
+                        'driver' => $delivery->driver ? [
+                            'id' => $delivery->driver->id,
+                            'name' => $delivery->driver->name
+                        ] : null
+                    ];
+                })
             ]);
 
-        return response()->json([
-            'success' => true,
-            'deliveries' => $deliveries
-        ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Server error: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
      * Get specific delivery details
      */
+    /**
+     * Get specific delivery details
+     */
     public function getDelivery(Request $request, $id)
     {
-        $user = $request->user();
+        try {
+            $user = $request->user();
 
-        if (!$user->isClient()) {
-            return response()->json(['message' => 'Unauthorized access'], 403);
+            if (!$user || !$user->isClient()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized access'
+                ], 403);
+            }
+
+            $delivery = $user->clientDeliveries()
+                ->with([
+                    'driver' => function($query) {
+                        $query->select('id', 'name');
+                    },
+                    'statusHistory' => function($query) {
+                        $query->orderBy('created_at', 'desc')
+                            ->select('id', 'delivery_id', 'status', 'location', 'notes', 'created_at');
+                    }
+                ])
+                ->find($id);
+
+            if (!$delivery) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Delivery not found'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'delivery' => [
+                    'id' => $delivery->id,
+                    'tracking_number' => $delivery->tracking_number,
+                    'pickup_address' => $delivery->pickup_address,
+                    'pickup_contact' => $delivery->pickup_contact,
+                    'pickup_phone' => $delivery->pickup_phone,
+                    'delivery_address' => $delivery->delivery_address,
+                    'recipient_name' => $delivery->recipient_name,
+                    'recipient_phone' => $delivery->recipient_phone,
+                    'package_size' => $delivery->package_size,
+                    'package_weight' => (float)$delivery->package_weight,
+                    'package_description' => $delivery->package_description,
+                    'is_fragile' => (bool)$delivery->is_fragile,
+                    'delivery_type' => $delivery->delivery_type,
+                    'delivery_date' => $delivery->delivery_date ? Carbon::parse($delivery->delivery_date)->toISOString() : null,
+                    'delivery_time' => $delivery->delivery_time,
+                    'delivery_instructions' => $delivery->delivery_instructions,
+                    'price' => (float)$delivery->price,
+                    'status' => $delivery->status,
+                    'payment_status' => $delivery->payment_status,
+                    'created_at' => $delivery->created_at->toISOString(),
+                    'driver_id' => $delivery->driver_id,
+                    'driver' => $delivery->driver ? [
+                        'id' => $delivery->driver->id,
+                        'name' => $delivery->driver->name
+                    ] : null,
+                    'status_history' => $delivery->statusHistory->map(function ($status) {
+                        return [
+                            'id' => $status->id,
+                            'status' => $status->status,
+                            'location' => $status->location,
+                            'notes' => $status->notes,
+                            'created_at' => $status->created_at->toISOString()
+                        ];
+                    })
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Server error: ' . $e->getMessage()
+            ], 500);
         }
-
-        $delivery = $user->clientDeliveries()
-            ->with(['driver', 'driver.driverProfile', 'statusHistory' => function($query) {
-                $query->orderBy('created_at', 'desc');
-            }])
-            ->find($id);
-
-        if (!$delivery) {
-            return response()->json(['message' => 'Delivery not found'], 404);
-        }
-
-        return response()->json(['delivery' => $delivery]);
     }
 
     /**

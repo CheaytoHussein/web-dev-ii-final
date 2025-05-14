@@ -75,79 +75,85 @@ class DeliveryController extends Controller
 
     public function getAvailableDrivers(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'latitude' => 'nullable|numeric|between:-90,90',
-            'longitude' => 'nullable|numeric|between:-180,180',
-            'radius' => 'nullable|numeric|min:1|max:50',
-            'vehicle_type' => 'nullable|string',
-        ]);
+        try {
+            $validator = Validator::make($request->all(), [
+                'latitude' => 'nullable|numeric|between:-90,90',
+                'longitude' => 'nullable|numeric|between:-180,180',
+                'radius' => 'nullable|numeric|min:1|max:50',
+                'vehicle_type' => 'nullable|string',
+            ]);
 
-        if ($validator->fails()) {
-            return response()->json(['message' => $validator->errors()->first()], 422);
-        }
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $validator->errors()->first()
+                ], 422);
+            }
 
-        // Get available and verified drivers
-        $query = User::where('user_type', 'driver')
-            ->whereHas('driverProfile', function($q) use ($request) {
-                $q->where('is_available', true)
-                    ->where('is_verified', true);
+            // Get available and verified drivers
+            $query = User::where('user_type', 'driver')
+                ->whereHas('driverProfile', function($q) use ($request) {
+                    $q->where('is_available', true)
+                        ->where('is_verified', true);
 
-                if ($request->vehicle_type) {
-                    $q->where('vehicle_type', $request->vehicle_type);
-                }
-            })
-            ->with(['driverProfile']);
+                    if ($request->vehicle_type) {
+                        $q->where('vehicle_type', $request->vehicle_type);
+                    }
+                })
+                ->with(['driverProfile']);
 
-        $drivers = $query->get();
+            $drivers = $query->get();
 
-        // Calculate distance if coordinates provided
-        if ($request->latitude && $request->longitude) {
-            $drivers = $drivers->map(function($driver) use ($request) {
-                // Simple distance calculation (in real app, use Haversine formula)
-                $distance = 0;
-                if ($driver->driverProfile->latitude && $driver->driverProfile->longitude) {
-                    $distance = $this->calculateDistance(
-                        $request->latitude,
-                        $request->longitude,
+            // Transform the data to match frontend expectations
+            $transformedDrivers = $drivers->map(function($driver) use ($request) {
+                // Calculate distance (simplified for demo)
+                $distance = $driver->driverProfile->latitude && $driver->driverProfile->longitude
+                    ? $this->calculateDistance(
+                        $request->latitude ?? 0,
+                        $request->longitude ?? 0,
                         $driver->driverProfile->latitude,
                         $driver->driverProfile->longitude
-                    );
-                } else {
-                    // Random distance for demo
-                    $distance = rand(1, 10);
-                }
+                    )
+                    : rand(1, 10); // Random distance for demo
 
                 return [
-                    'id' => $driver->id,
+                    'id' => (string)$driver->id,
                     'name' => $driver->name,
-                    'rating' => $driver->driverProfile->rating,
+                    'email' => $driver->email,
+                    'phone' => $driver->driverProfile->phone,
+                    'rating' => (float)$driver->driverProfile->rating,
+                    'profile_picture' => $driver->driverProfile->profile_picture,
                     'vehicle_type' => $driver->driverProfile->vehicle_type,
                     'vehicle_model' => $driver->driverProfile->vehicle_model,
-                    'profile_picture' => $driver->driverProfile->profile_picture,
-                    'distance' => round($distance, 1),
-                    'location' => [
-                        'lat' => (float)$driver->driverProfile->latitude,
-                        'lng' => (float)$driver->driverProfile->longitude,
-                    ],
-                    'completedDeliveries' => $driver->driverDeliveries()->where('status', 'delivered')->count(),
-                    'isAvailable' => true,
+                    'is_available' => (bool)$driver->driverProfile->is_available,
+                    'distance' => (float)round($distance, 1),
+                    'latitude' => (float)$driver->driverProfile->latitude,
+                    'longitude' => (float)$driver->driverProfile->longitude,
+                    'completed_deliveries' => (int)$driver->driverDeliveries()->where('status', 'delivered')->count(),
                 ];
             });
 
-            // Filter by radius
+            // Filter by radius if provided
             if ($request->radius) {
-                $drivers = $drivers->filter(function($driver) use ($request) {
+                $transformedDrivers = $transformedDrivers->filter(function($driver) use ($request) {
                     return $driver['distance'] <= $request->radius;
                 });
             }
 
             // Sort by distance
-            $drivers = $drivers->sortBy('distance')->values();
-        }
+            $transformedDrivers = $transformedDrivers->sortBy('distance')->values();
 
-        return response()->json([
-            'drivers' => $drivers
-        ]);
+            return response()->json([
+                'success' => true,
+                'drivers' => $transformedDrivers
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch drivers: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**

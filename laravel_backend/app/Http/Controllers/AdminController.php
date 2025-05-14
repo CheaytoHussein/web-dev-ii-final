@@ -117,6 +117,14 @@ class AdminController extends Controller
             ->limit(10)
             ->get();
 
+        $currentMonthRevenue = Payment::where('status', 'completed')
+            ->whereMonth('created_at', Carbon::now()->month)
+            ->sum('amount');
+
+        $previousMonthRevenue = Payment::where('status', 'completed')
+            ->whereMonth('created_at', Carbon::now()->subMonth()->month)
+            ->sum('amount');
+
         return response()->json([
             'users' => [
                 'total_clients' => $totalClients,
@@ -132,8 +140,9 @@ class AdminController extends Controller
             ],
             'revenue' => [
                 'total' => $totalRevenue,
-                'commissions' => $totalCommissions,
-                'today' => $todayRevenue,
+                'current_month' => $currentMonthRevenue,
+                'previous_month' => $previousMonthRevenue,
+                'currency' => '$', // Add currency symbol
             ],
             'recent_deliveries' => $recentDeliveries,
         ]);

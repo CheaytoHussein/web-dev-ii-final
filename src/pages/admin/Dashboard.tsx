@@ -1,5 +1,8 @@
 // AdminDashboard.tsx
 import { useState, useEffect } from 'react';
+import {
+   Mail,  MapPin, Calendar, Box, Info, Clock, AlignLeft
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
   Card, CardContent, CardHeader, CardTitle, CardDescription,
@@ -39,6 +42,9 @@ interface StatData {
   };
   revenue?: {
     total?: number;
+    current_month?: number;
+    previous_month?: number;
+    currency?: string;
   };
   recent_deliveries?: any[];
 }
@@ -84,6 +90,8 @@ const AdminDashboard = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [bulkDrivers, setBulkDrivers] = useState<string[]>([]);
   const [driverFilter, setDriverFilter] = useState('');
+  const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null);
+  const [isDeliveryDialogOpen, setIsDeliveryDialogOpen] = useState(false);
 
   const token = localStorage.getItem('auth_token');
   const headers = {
@@ -91,8 +99,9 @@ const AdminDashboard = () => {
     'Content-Type': 'application/json'
   };
 
-  const handleViewDetails = (deliveryId: string) => {
-    navigate(`/admin/deliveries/${deliveryId}`);
+  const handleViewDetails = (delivery: Delivery) => {
+    setSelectedDelivery(delivery);
+    setIsDeliveryDialogOpen(true);
   };
 
   useEffect(() => {
@@ -103,13 +112,34 @@ const AdminDashboard = () => {
 
     const fetchDashboard = async () => {
       try {
-        const res = await fetch('http://localhost:8000/api/admin/dashboard', { headers });
+        const res = await fetch('http://localhost:8000/api/admin/dashboard', {
+          headers,
+          cache: 'no-store'
+        });
+
         if (!res.ok) throw new Error('Failed to fetch dashboard');
+
         const data = await res.json();
-        setStats(data);
-        setRecentDeliveries(data.recent_deliveries || []);
+
+        // Ensure revenue data exists and has proper format
+        const formattedData = {
+          ...data,
+          revenue: {
+            ...data.revenue,
+            total: data.revenue?.total || 0,
+            currency: data.revenue?.currency || '$'
+          }
+        };
+
+        setStats(formattedData);
+        setRecentDeliveries(formattedData.recent_deliveries || []);
       } catch (error) {
         console.error('Dashboard fetch failed:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load dashboard data',
+          variant: 'destructive',
+        });
         navigate('/admin/login');
       }
     };
@@ -121,10 +151,18 @@ const AdminDashboard = () => {
 
   const fetchDrivers = async () => {
     try {
-      const res = await fetch('http://localhost:8000/api/admin/drivers', { headers });
+      const res = await fetch('http://localhost:8000/api/admin/drivers', {
+        headers,
+        cache: 'no-store' // Prevent caching
+      });
       if (!res.ok) throw new Error('Failed to fetch drivers');
       const data = await res.json();
-      setDrivers(data.drivers?.data || data.drivers || []);
+      // Ensure the data includes is_verified status
+      const driversWithVerification = (data.drivers?.data || data.drivers || []).map(driver => ({
+        ...driver,
+        is_verified: driver.is_verified || false // Default to false if undefined
+      }));
+      setDrivers(driversWithVerification);
     } catch (error) {
       console.error('Failed to fetch drivers:', error);
       toast({
@@ -321,13 +359,7 @@ const AdminDashboard = () => {
               </div>
             </div>
             <div className="flex items-center space-x-4 mt-4 md:mt-0">
-              <Button
-                  variant="outline"
-                  className="border-gray-300 hover:bg-gray-100"
-                  onClick={() => navigate('/admin/settings')}
-              >
-                Settings
-              </Button>
+
               <Button
                   variant="destructive"
                   className="hover:bg-red-600"
@@ -373,7 +405,11 @@ const AdminDashboard = () => {
               <Stat
                   icon={<TrendingUp className="h-6 w-6 text-rose-600" />}
                   label="Revenue"
-                  value={`$${stats.revenue?.total?.toLocaleString() || 0}`}
+                  value={
+                    stats.revenue?.total !== undefined
+                        ? `${stats.revenue?.currency || '$'}${stats.revenue.total.toLocaleString()}`
+                        : `${stats.revenue?.currency || '$'}0`
+                  }
               />
             </div>
           </CardContent>
@@ -448,7 +484,7 @@ const AdminDashboard = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <button
-                                onClick={() => handleViewDetails(delivery.id)}
+                                onClick={() => handleViewDetails(delivery)}
                                 className="text-blue-600 hover:text-blue-900"
                             >
                               View
@@ -561,7 +597,8 @@ const AdminDashboard = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Deliveries</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+
                     </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -626,18 +663,7 @@ const AdminDashboard = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <div className="flex space-x-2">
-                              {!driver.is_verified ? (
-                                  <Button
-                                      size="sm"
-                                      className="bg-green-600 hover:bg-green-700"
-                                      onClick={() => {
-                                        setSelectedDriverId(driver.id);
-                                        setIsVerifyDialogOpen(true);
-                                      }}
-                                  >
-                                    Verify
-                                  </Button>
-                              ) : (
+                              {driver.is_verified ? (
                                   <Button
                                       size="sm"
                                       variant="destructive"
@@ -648,6 +674,17 @@ const AdminDashboard = () => {
                                   >
                                     Unverify
                                   </Button>
+                              ) : (
+                                  <Button
+                                      size="sm"
+                                      className="bg-green-600 hover:bg-green-700"
+                                      onClick={() => {
+                                        setSelectedDriverId(driver.id);
+                                        setIsVerifyDialogOpen(true);
+                                      }}
+                                  >
+                                    Verify
+                                  </Button>
                               )}
                               <Button
                                   size="sm"
@@ -657,17 +694,7 @@ const AdminDashboard = () => {
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
-                              <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="border-gray-300"
-                                  onClick={() => {
-                                    const newStatus = driver.status === 'active' ? 'pending' : 'active';
-                                    handleDriverStatusChange(driver.id, newStatus);
-                                  }}
-                              >
-                                {driver.status === 'active' ? 'Deactivate' : 'Activate'}
-                              </Button>
+
                             </div>
                           </td>
                         </tr>
@@ -754,17 +781,33 @@ const AdminDashboard = () => {
         <Dialog open={isVerifyDialogOpen} onOpenChange={setIsVerifyDialogOpen}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle className="text-lg font-semibold">Verify Driver</DialogTitle>
+              <DialogTitle className="text-lg font-semibold">
+                {selectedDriverId && drivers.find(d => d.id === selectedDriverId)?.is_verified
+                    ? 'Unverify Driver'
+                    : 'Verify Driver'}
+              </DialogTitle>
               <DialogDescription>
-                This will grant the driver full access to the driver dashboard and allow them to accept deliveries.
+                {selectedDriverId && drivers.find(d => d.id === selectedDriverId)?.is_verified
+                    ? 'This will revoke the driver\'s ability to accept new deliveries.'
+                    : 'This will grant the driver full access to the driver dashboard and allow them to accept deliveries.'}
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="mt-4">
               <Button
-                  onClick={() => handleVerifyDriver()}
-                  className="bg-green-600 hover:bg-green-700"
+                  onClick={() =>
+                      selectedDriverId && drivers.find(d => d.id === selectedDriverId)?.is_verified
+                          ? handleUnverifyDriver()
+                          : handleVerifyDriver()
+                  }
+                  className={
+                    selectedDriverId && drivers.find(d => d.id === selectedDriverId)?.is_verified
+                        ? "bg-red-600 hover:bg-red-700"
+                        : "bg-green-600 hover:bg-green-700"
+                  }
               >
-                Confirm Verification
+                {selectedDriverId && drivers.find(d => d.id === selectedDriverId)?.is_verified
+                    ? 'Confirm Unverification'
+                    : 'Confirm Verification'}
               </Button>
               <Button
                   variant="outline"
@@ -773,6 +816,158 @@ const AdminDashboard = () => {
               >
                 Cancel
               </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+
+        {/* Delivery Details Dialog */}
+        <Dialog open={isDeliveryDialogOpen} onOpenChange={setIsDeliveryDialogOpen}>
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-semibold">Delivery Details</DialogTitle>
+              <DialogDescription>
+                Detailed information about delivery #{selectedDelivery?.id}
+              </DialogDescription>
+            </DialogHeader>
+
+            {selectedDelivery && (
+                <div className="space-y-6">
+                  {/* Client and Driver Information */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Client Card */}
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <h3 className="font-medium text-lg flex items-center gap-2 mb-3">
+                        <User className="h-5 w-5 text-blue-600" />
+                        Client Information
+                      </h3>
+                      <div className="space-y-3">
+                        <div className="flex gap-2">
+                          <User className="h-5 w-5 text-gray-500 mt-0.5" />
+                          <div>
+                            <p className="text-sm text-muted-foreground">Name</p>
+                            <p className="font-medium">{selectedDelivery.client.name || 'N/A'}</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Mail className="h-5 w-5 text-gray-500 mt-0.5" />
+                          <div>
+                            <p className="text-sm text-muted-foreground">Email</p>
+                            <p className="font-medium">{selectedDelivery.client.email || 'N/A'}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Driver Card */}
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <h3 className="font-medium text-lg flex items-center gap-2 mb-3">
+                        <Truck className="h-5 w-5 text-green-600" />
+                        Driver Information
+                      </h3>
+                      <div className="space-y-3">
+                        <div className="flex gap-2">
+                          <User className="h-5 w-5 text-gray-500 mt-0.5" />
+                          <div>
+                            <p className="text-sm text-muted-foreground">Name</p>
+                            <p className="font-medium">{selectedDelivery.driver?.name || 'Not assigned'}</p>
+                          </div>
+                        </div>
+                        {selectedDelivery.driver?.email && (
+                            <div className="flex gap-2">
+                              <Mail className="h-5 w-5 text-gray-500 mt-0.5" />
+                              <div>
+                                <p className="text-sm text-muted-foreground">Email</p>
+                                <p className="font-medium">{selectedDelivery.driver.email}</p>
+                              </div>
+                            </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Delivery Information */}
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h3 className="font-medium text-lg flex items-center gap-2 mb-3">
+                      <Package className="h-5 w-5 text-purple-600" />
+                      Delivery Information
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Status */}
+                      <div className="flex gap-2">
+                        <Info className="h-5 w-5 text-gray-500 mt-0.5" />
+                        <div>
+                          <p className="text-sm text-muted-foreground">Status</p>
+                          <Badge
+                              variant={
+                                selectedDelivery.status === 'completed'
+                                    ? 'secondary'
+                                    : selectedDelivery.status === 'active'
+                                        ? 'default'
+                                        : 'outline'
+                              }
+                              className="capitalize"
+                          >
+                            {selectedDelivery.status}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      {/* Delivery Date */}
+                      <div className="flex gap-2">
+                        <Calendar className="h-5 w-5 text-gray-500 mt-0.5" />
+                        <div>
+                          <p className="text-sm text-muted-foreground">Delivery Date</p>
+                          <p className="font-medium">
+                            {new Date(selectedDelivery.delivery_date).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Created At */}
+                      <div className="flex gap-2">
+                        <Clock className="h-5 w-5 text-gray-500 mt-0.5" />
+                        <div>
+                          <p className="text-sm text-muted-foreground">Created At</p>
+                          <p className="font-medium">
+                            {new Date(selectedDelivery.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Package Size */}
+                      <div className="flex gap-2">
+                        <Box className="h-5 w-5 text-gray-500 mt-0.5" />
+                        <div>
+                          <p className="text-sm text-muted-foreground">Package Size</p>
+                          <p className="font-medium">{selectedDelivery.package_size}</p>
+                        </div>
+                      </div>
+
+                      {/* Delivery Address (Full width) */}
+                      <div className="md:col-span-2 flex gap-2">
+                        <MapPin className="h-5 w-5 text-gray-500 mt-0.5" />
+                        <div>
+                          <p className="text-sm text-muted-foreground">Delivery Address</p>
+                          <p className="font-medium">{selectedDelivery.delivery_address}</p>
+                        </div>
+                      </div>
+
+                      {/* Package Description (Full width) */}
+                      <div className="md:col-span-2 flex gap-2">
+                        <AlignLeft className="h-5 w-5 text-gray-500 mt-0.5" />
+                        <div>
+                          <p className="text-sm text-muted-foreground">Package Description</p>
+                          <p className="font-medium">{selectedDelivery.package_description}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+            )}
+
+            <DialogFooter>
+              <Button onClick={() => setIsDeliveryDialogOpen(false)}>Close</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -837,6 +1032,8 @@ const AdminDashboard = () => {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+
+
         )}
       </div>
   );

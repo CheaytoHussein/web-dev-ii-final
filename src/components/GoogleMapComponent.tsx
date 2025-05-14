@@ -166,21 +166,20 @@ const GoogleMapComponent = ({
   };
 
   return (
-    <div 
-      ref={mapRef} 
-      style={{ 
-        height, 
-        width: "100%", 
-        borderRadius: "0.375rem", // rounded-md
-        overflow: "hidden"
-      }}
-    >
-      {!mapLoaded && (
-        <div className="flex items-center justify-center w-full h-full bg-gray-100">
-          <p className="text-muted-foreground">Loading map...</p>
-        </div>
-      )}
-    </div>
+      <div ref={mapRef} style={{ height, width: "100%" }}>
+        {!mapLoaded && (
+            <div className="flex items-center justify-center w-full h-full bg-gray-100">
+              <p className="text-muted-foreground">
+                Loading map... {!window.google && "(Google API not loaded)"}
+              </p>
+            </div>
+        )}
+        {mapLoaded && !driverLocation && (
+            <div className="flex items-center justify-center w-full h-full bg-gray-100">
+              <p className="text-muted-foreground">Waiting for location data...</p>
+            </div>
+        )}
+      </div>
   );
 };
 

@@ -56,7 +56,11 @@ const FindDrivers = () => {
     const fetchDrivers = async () => {
       try {
         setLoading(true);
+        console.log("Starting to fetch drivers...");
+
         const token = localStorage.getItem("auth_token");
+        console.log("Token exists:", !!token);
+
         if (!token) {
           navigate("/login?type=client");
           return;
@@ -65,20 +69,31 @@ const FindDrivers = () => {
         const response = await fetch("http://localhost:8000/api/drivers/available", {
           headers: {
             "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
           },
         });
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch available drivers");
-        }
+        console.log("Response status:", response.status);
 
         const data = await response.json();
-        setDrivers(data.drivers || []);
+        console.log("API Response:", data);
+
+        if (!response.ok) {
+          throw new Error(data.message || "Failed to fetch available drivers");
+        }
+
+        if (!data.success || !Array.isArray(data.drivers)) {
+          console.error("Invalid data format:", data);
+          throw new Error("Invalid drivers data format");
+        }
+
+        console.log("Received drivers:", data.drivers);
+        setDrivers(data.drivers);
       } catch (error) {
-        console.error("Drivers fetch error:", error);
+        console.error("Full error details:", error);
         toast({
           title: "Error",
-          description: "Failed to load available drivers",
+          description: error instanceof Error ? error.message : "Failed to load available drivers",
           variant: "destructive",
         });
       } finally {
@@ -124,6 +139,14 @@ const FindDrivers = () => {
   };
 
   const selectDriver = (driver: Driver) => {
+    if (!driver.latitude || !driver.longitude) {
+      toast({
+        title: "Error",
+        description: "This driver's location data is incomplete",
+        variant: "destructive",
+      });
+      return;
+    }
     setSelectedDriver(driver);
   };
 
@@ -376,9 +399,13 @@ const FindDrivers = () => {
 
                       <div className="h-[300px]">
                         <GoogleMapComponent
-                            driverLocation={{ lat: selectedDriver.latitude, lng: selectedDriver.longitude }}
+                            driverLocation={{
+                              lat: selectedDriver.latitude,
+                              lng: selectedDriver.longitude
+                            }}
                             isLive={true}
                             height="100%"
+                            key={`${selectedDriver.latitude},${selectedDriver.longitude}`} // Add this line
                         />
                       </div>
                     </div>
