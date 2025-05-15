@@ -108,7 +108,7 @@ const StripePaymentForm = ({ amount, deliveryId, onSuccess, onCancel }: StripePa
       
       toast({
         title: "Payment Successful",
-        description: `Payment of $${amount.toFixed(2)} was processed successfully`,
+        description: `Payment of $${Number(amount).toFixed(2)} was processed successfully`,
       });
       
       onSuccess();
@@ -191,7 +191,8 @@ const StripePaymentForm = ({ amount, deliveryId, onSuccess, onCancel }: StripePa
       <div className="py-4">
         <div className="mb-4 flex justify-between items-center">
           <h3 className="text-lg font-medium">Total Amount:</h3>
-          <p className="text-xl font-bold">${amount.toFixed(2)}</p>
+          <p className="text-xl font-bold">${Number(amount).toFixed(2)}</p>
+
         </div>
 
         <Tabs defaultValue="card" onValueChange={(value) => setPaymentMethod(value as "card" | "crypto")}>
@@ -337,7 +338,8 @@ const StripePaymentForm = ({ amount, deliveryId, onSuccess, onCancel }: StripePa
             </div>
             
             <div className="text-sm text-muted-foreground text-center">
-              <p>Please send {amount.toFixed(2)} USD equivalent to the above address.</p>
+              <p>Please send {Number(amount).toFixed(2)} USD equivalent to the above address.</p>
+
               <p>After sending, click the Confirm Payment button below.</p>
             </div>
             

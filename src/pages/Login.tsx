@@ -26,6 +26,7 @@ const Login = () => {
         await fetch("http://localhost:8000/sanctum/csrf-cookie", {
             credentials: "include",
         });
+        console.log("Login payload:", { email, password, user_type: userType });
 
         // Then call login
         const response = await fetch("http://localhost:8000/api/auth/login", {

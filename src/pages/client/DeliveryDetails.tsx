@@ -433,7 +433,7 @@ const DeliveryDetails = () => {
               <CardContent className="space-y-4">
                 <div className="flex justify-between items-center">
                   <h3 className="font-medium">Total Amount</h3>
-                  <p className="text-xl font-bold">${delivery.price.toFixed(2)}</p>
+             
                 </div>
                 
                 <div className="flex justify-between items-center">

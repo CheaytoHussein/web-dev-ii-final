@@ -25,7 +25,9 @@ class DriverController extends Controller
 
         $driverProfile = $user->driverProfile;
         $completedDeliveries = $user->driverDeliveries()->where('status', 'delivered')->count();
-        $activeDeliveries = $user->driverDeliveries()->whereIn('status', ['accepted', 'picked_up', 'in_transit'])->count();
+        $activeDeliveries = $user->driverDeliveries()->whereIn('status', ['pending','accepted', 'picked_up', 'in_transit'])->count();
+        $pendingDeliveries = $user->driverDeliveries()->where('status', 'pending')->count();
+
         
         // Calculate earnings for today and this week
         $todayEarnings = $user->driverEarnings()
@@ -50,6 +52,7 @@ class DriverController extends Controller
                 ]
             ],
             'stats' => [
+                'pending_deliveries' => $pendingDeliveries,
                 'completed_deliveries' => $completedDeliveries,
                 'active_deliveries' => $activeDeliveries,
                 'today_earnings' => $todayEarnings,
@@ -61,7 +64,37 @@ class DriverController extends Controller
                 ->limit(5)
                 ->get()
         ]);
+    }public function updateProfile(Request $request)
+{
+    $user = Auth::user();
+
+    if (!$user->isDriver()) {
+        return response()->json(['message' => 'Unauthorized'], 403);
     }
+
+    // Validate incoming data
+    $validatedData = $request->validate([
+        'vehicle_type' => 'required|string|max:255',
+        'vehicle_model' => 'required|string|max:255',
+        'vehicle_color' => 'required|string|max:255',
+        'vehicle_plate_number' => 'required|string|max:255',
+        'driver_license' => 'required|string|max:255',
+        'is_available' => 'required|boolean',
+    ]);
+
+    // Update the driver's profile
+    $driverProfile = $user->driverProfile;
+    $driverProfile->update([
+        'vehicle_type' => $validatedData['vehicle_type'],
+        'vehicle_model' => $validatedData['vehicle_model'],
+        'vehicle_color' => $validatedData['vehicle_color'],
+        'vehicle_plate_number' => $validatedData['vehicle_plate_number'],
+        'driver_license' => $validatedData['driver_license'],
+        'is_available' => $validatedData['is_available'],
+    ]);
+
+    return response()->json(['message' => 'Profile updated successfully', 'driverProfile' => $driverProfile]);
+}
 
     /**
      * Update driver availability
@@ -150,27 +183,45 @@ class DriverController extends Controller
      * Get delivery details
      */
     public function getDelivery($id)
-    {
-        $user = Auth::user();
+{
+    $user = Auth::user();
 
-        if (!$user->isDriver()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-
-        $delivery = $user->driverDeliveries()
-            ->with([
-                'client:id,name,phone,email',
-                'payment:id,delivery_id,amount,status',
-                'statusHistory' => function($query) {
-                    $query->orderBy('created_at', 'desc');
-                }
-            ])
-            ->findOrFail($id);
-        
-        return response()->json([
-            'delivery' => $delivery
-        ]);
+    if (!$user->isDriver()) {
+        return response()->json(['message' => 'Unauthorized'], 403);
     }
+
+    $delivery = $user->driverDeliveries()
+        ->with([
+            'client:id,name,phone,email',
+            'payment:id,delivery_id,amount,status',
+            'statusHistory' => function($query) {
+                $query->orderBy('created_at', 'desc');
+            }
+        ])
+        ->findOrFail($id);
+
+    // Ensure that the delivery object contains the new fields
+    $deliveryDetails = $delivery->toArray();
+    $deliveryDetails['package_size'] = $delivery->package_size;
+    $deliveryDetails['package_description'] = $delivery->package_description;
+    $deliveryDetails['delivery_instructions'] = $delivery->delivery_instructions;
+    $deliveryDetails['price'] = $delivery->price;
+
+    return response()->json([
+        'delivery' => $deliveryDetails
+    ]);
+}
+
+public function getActiveDelivery(Request $request)
+{
+    // Fetch active delivery data, e.g. based on the authenticated driver
+    $driver = $request->user();  // Assuming you have a driver logged in
+    $activeDelivery = Delivery::where('driver_id', $driver->id)
+        ->where('status', '!=', 'delivered')
+        ->first();
+
+    return response()->json(['delivery' => $activeDelivery]);
+}
 
     /**
      * Accept a delivery request
@@ -247,9 +298,11 @@ class DriverController extends Controller
 
         // Validate status transition
         $validTransitions = [
-            'accepted' => ['picked_up'],
+            'pending' => ['accepted','delivered','in_transit'],
+            'accepted' => ['picked_up','in_transit','delivered'],
             'picked_up' => ['in_transit'],
             'in_transit' => ['delivered'],
+            'delivered' => ['in_transit'],
         ];
 
         if (!isset($validTransitions[$delivery->status]) || !in_array($request->status, $validTransitions[$delivery->status])) {
@@ -291,9 +344,14 @@ class DriverController extends Controller
                 
                 $user->driverEarnings()->create([
                     'delivery_id' => $delivery->id,
-                    'amount' => $driverShare,
-                    'notes' => "Payment for delivery #{$delivery->tracking_number}",
-                ]);
+            'amount' => $payment->amount,  // Total amount of the payment
+            'commission' => $payment->amount * 0.20,  // Assuming 20% commission
+            'net_amount' => $driverShare,  // Driver's share after commission
+            'status' => 'paid',  // You can track the status of the payout
+            'payout_date' => Carbon::now(),  // Date of the payout
+            'payout_method' => 'bank_transfer',  // You can adjust the payout method based on your requirements
+            'transaction_id' => uniqid(),  // Transaction ID, can be unique
+        ]);
             }
         }
 

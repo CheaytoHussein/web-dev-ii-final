@@ -46,6 +46,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/deliveries', [ClientController::class, 'getDeliveries']);
         Route::get('/deliveries/{id}', [ClientController::class, 'getDelivery']);
         Route::post('/deliveries', [ClientController::class, 'createDelivery']);
+        
         Route::post('/deliveries/{id}/cancel', [ClientController::class, 'cancelDelivery']);
         Route::get('/notifications', [ClientController::class, 'getNotifications']);
     });
@@ -56,11 +57,17 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/deliveries', [DriverController::class, 'getDeliveries']);
         Route::get('/deliveries/{id}', [DriverController::class, 'getDelivery']);
         Route::post('/deliveries/{id}/accept', [DriverController::class, 'acceptDelivery']);
-        Route::post('/deliveries/{id}/status', [DriverController::class, 'updateDeliveryStatus']);
+        Route::post('/deliveries/{id}/update-status', [DriverController::class, 'updateDeliveryStatus']);
+        Route::post('/driver/profile/update', [DriverController::class, 'updateProfile']);
+
         Route::post('/availability', [DriverController::class, 'updateAvailability']);
         Route::post('/location', [DriverController::class, 'updateLocation']);
         Route::get('/earnings', [DriverController::class, 'getEarnings']);
         Route::get('/notifications', [DriverController::class, 'getNotifications']);
+        Route::get('/active-delivery', [DriverController::class, 'getActiveDelivery']);
+
+        
+
     });
     
     // Admin routes

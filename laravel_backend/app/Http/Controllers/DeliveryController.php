@@ -71,7 +71,21 @@ class DeliveryController extends Controller
                 'type_multiplier' => $typeMultiplier,
             ]
         ]);
+    }// in DriverController.php
+public function show($id)
+{
+    $delivery = Delivery::find($id);
+
+    if (!$delivery) {
+        abort(404, 'Delivery not found.');
     }
+
+    // Make sure you pass all necessary fields in the response
+    return response()->json($delivery);
+}
+
+
+
 
     public function getAvailableDrivers(Request $request)
     {

@@ -134,7 +134,7 @@ const ClientDeliveries = () => {
                       <TableCell className="max-w-[150px] truncate">{delivery.pickup_address}</TableCell>
                       <TableCell className="max-w-[150px] truncate">{delivery.delivery_address}</TableCell>
                       <TableCell>{getStatusBadge(delivery.status)}</TableCell>
-                      <TableCell className="text-right">${delivery.price.toFixed(2)}</TableCell>
+            
                       <TableCell className="text-right">{new Date(delivery.created_at).toLocaleDateString()}</TableCell>
                       <TableCell>
                         <Button 
