@@ -32,7 +32,7 @@ class AdminController extends Controller
         $admin = User::where('email', $request->email)
             ->where('user_type', 'admin')
             ->first();
-            
+
         if (!$admin || !Hash::check($request->password, $admin->password)) {
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
@@ -53,11 +53,11 @@ class AdminController extends Controller
     public function getUser(Request $request)
     {
         $admin = $request->user();
-        
+
         if (!$admin->isAdmin()) {
             return response()->json(['message' => 'Unauthorized access'], 403);
         }
-        
+
         return response()->json([
             'admin' => $admin->only(['id', 'name', 'email']),
         ]);
@@ -69,7 +69,7 @@ class AdminController extends Controller
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
-        
+
         return response()->json(['message' => 'Successfully logged out']);
     }
 
@@ -79,11 +79,11 @@ class AdminController extends Controller
     public function getDashboard(Request $request)
     {
         $admin = $request->user();
-        
+
         if (!$admin->isAdmin()) {
             return response()->json(['message' => 'Unauthorized access'], 403);
         }
-        
+
         // Users statistics
         $totalClients = User::where('user_type', 'client')->count();
         $totalDrivers = User::where('user_type', 'driver')->count();
@@ -97,26 +97,34 @@ class AdminController extends Controller
                 $query->where('is_available', true);
             })
             ->count();
-            
+
         // Deliveries statistics
         $totalDeliveries = Delivery::count();
         $activeDeliveries = Delivery::whereIn('status', ['pending', 'accepted', 'picked_up', 'in_transit'])->count();
         $completedDeliveries = Delivery::where('status', 'delivered')->count();
         $cancelledDeliveries = Delivery::where('status', 'cancelled')->count();
-        
+
         // Payment statistics
         $totalRevenue = Payment::where('status', 'completed')->sum('amount');
         $totalCommissions = DriverEarning::sum('commission');
         $todayRevenue = Payment::whereDate('created_at', Carbon::today())
             ->where('status', 'completed')
             ->sum('amount');
-            
+
         // Recent deliveries
         $recentDeliveries = Delivery::with(['client', 'driver'])
             ->orderBy('created_at', 'desc')
             ->limit(10)
             ->get();
-            
+
+        $currentMonthRevenue = Payment::where('status', 'completed')
+            ->whereMonth('created_at', Carbon::now()->month)
+            ->sum('amount');
+
+        $previousMonthRevenue = Payment::where('status', 'completed')
+            ->whereMonth('created_at', Carbon::now()->subMonth()->month)
+            ->sum('amount');
+
         return response()->json([
             'users' => [
                 'total_clients' => $totalClients,
@@ -132,8 +140,9 @@ class AdminController extends Controller
             ],
             'revenue' => [
                 'total' => $totalRevenue,
-                'commissions' => $totalCommissions,
-                'today' => $todayRevenue,
+                'current_month' => $currentMonthRevenue,
+                'previous_month' => $previousMonthRevenue,
+                'currency' => '$', // Add currency symbol
             ],
             'recent_deliveries' => $recentDeliveries,
         ]);
@@ -145,87 +154,87 @@ class AdminController extends Controller
     public function getClients(Request $request)
     {
         $admin = $request->user();
-        
         if (!$admin->isAdmin()) {
             return response()->json(['message' => 'Unauthorized access'], 403);
         }
-        
-        $clients = User::where('user_type', 'client')
-            ->with('clientProfile')
-            ->paginate(20);
-            
+
+        $query = User::where('user_type', 'client')->with('clientProfile');
+
+        if ($search = $request->query('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%$search%")
+                    ->orWhere('email', 'like', "%$search%");
+            });
+        }
+
+        $sort = $request->query('sort', 'name');
+        $direction = $request->query('direction', 'asc');
+        $query->orderBy($sort, $direction);
+
         return response()->json([
-            'clients' => $clients
+            'clients' => $query->paginate(20)
         ]);
     }
 
-    /**
-     * Get all drivers
-     */
     public function getDrivers(Request $request)
     {
         $admin = $request->user();
-        
         if (!$admin->isAdmin()) {
             return response()->json(['message' => 'Unauthorized access'], 403);
         }
-        
-        $status = $request->query('status');
-        
-        $query = User::where('user_type', 'driver')
-            ->with('driverProfile');
-            
-        if ($status === 'verified') {
-            $query->whereHas('driverProfile', function($q) {
-                $q->where('is_verified', true);
-            });
-        } elseif ($status === 'unverified') {
-            $query->whereHas('driverProfile', function($q) {
-                $q->where('is_verified', false);
-            });
-        } elseif ($status === 'active') {
-            $query->whereHas('driverProfile', function($q) {
-                $q->where('is_available', true);
+
+        $query = User::where('user_type', 'driver')->with('driverProfile');
+
+        if ($search = $request->query('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%$search%")
+                    ->orWhere('email', 'like', "%$search%");
             });
         }
-        
-        $drivers = $query->paginate(20);
-            
+
+        if ($status = $request->query('status')) {
+            $query->whereHas('driverProfile', function ($q) use ($status) {
+                if ($status === 'verified') {
+                    $q->where('is_verified', true);
+                } elseif ($status === 'unverified') {
+                    $q->where('is_verified', false);
+                } elseif ($status === 'active') {
+                    $q->where('is_available', true);
+                }
+            });
+        }
+
+        $sort = $request->query('sort', 'name');
+        $direction = $request->query('direction', 'asc');
+        $query->orderBy($sort, $direction);
+
         return response()->json([
-            'drivers' => $drivers
+            'drivers' => $query->paginate(20)
         ]);
     }
+
 
     /**
      * Verify or unverify a driver
      */
-    public function toggleDriverVerification(Request $request, $id)
+    public function toggleDriverVerification($id)
     {
-        $admin = $request->user();
-        
-        if (!$admin->isAdmin()) {
-            return response()->json(['message' => 'Unauthorized access'], 403);
+        $user = User::where('role', 'driver')->find($id);
+
+        if (!$user || !$user->driverProfile) {
+            return response()->json(['message' => 'Driver not found.'], 404);
         }
-        
-        $driver = User::where('id', $id)
-            ->where('user_type', 'driver')
-            ->with('driverProfile')
-            ->first();
-            
-        if (!$driver) {
-            return response()->json(['message' => 'Driver not found'], 404);
-        }
-        
-        $isVerified = $request->input('is_verified', !$driver->driverProfile->is_verified);
-        
-        $driver->driverProfile->is_verified = $isVerified;
-        $driver->driverProfile->save();
-        
+
+        $driverProfile = $user->driverProfile;
+        $driverProfile->is_verified = !$driverProfile->is_verified;
+        $driverProfile->save();
+
         return response()->json([
-            'message' => $isVerified ? 'Driver verified successfully' : 'Driver unverified successfully',
-            'is_verified' => $driver->driverProfile->is_verified,
+            'message' => 'Driver verification status updated.',
+            'driver' => $user->load('driverProfile'),
         ]);
     }
+
 
     /**
      * Get all deliveries
@@ -233,31 +242,31 @@ class AdminController extends Controller
     public function getDeliveries(Request $request)
     {
         $admin = $request->user();
-        
+
         if (!$admin->isAdmin()) {
             return response()->json(['message' => 'Unauthorized access'], 403);
         }
-        
+
         $status = $request->query('status');
         $startDate = $request->query('start_date');
         $endDate = $request->query('end_date');
-        
+
         $query = Delivery::with(['client', 'driver']);
-        
+
         if ($status) {
             $query->where('status', $status);
         }
-        
+
         if ($startDate) {
             $query->whereDate('created_at', '>=', $startDate);
         }
-        
+
         if ($endDate) {
             $query->whereDate('created_at', '<=', $endDate);
         }
-        
+
         $deliveries = $query->orderBy('created_at', 'desc')->paginate(20);
-        
+
         return response()->json([
             'deliveries' => $deliveries
         ]);
@@ -269,14 +278,14 @@ class AdminController extends Controller
     public function getDelivery(Request $request, $id)
     {
         $admin = $request->user();
-        
+
         if (!$admin->isAdmin()) {
             return response()->json(['message' => 'Unauthorized access'], 403);
         }
-        
+
         $delivery = Delivery::with([
-                'client', 
-                'driver', 
+                'client',
+                'driver',
                 'driver.driverProfile',
                 'statusHistory' => function($query) {
                     $query->orderBy('created_at', 'desc');
@@ -285,11 +294,11 @@ class AdminController extends Controller
                 'driverEarning'
             ])
             ->find($id);
-        
+
         if (!$delivery) {
             return response()->json(['message' => 'Delivery not found'], 404);
         }
-        
+
         return response()->json([
             'delivery' => $delivery
         ]);
@@ -301,13 +310,13 @@ class AdminController extends Controller
     public function getReports(Request $request)
     {
         $admin = $request->user();
-        
+
         if (!$admin->isAdmin()) {
             return response()->json(['message' => 'Unauthorized access'], 403);
         }
-        
+
         $period = $request->query('period', 'month');
-        
+
         switch ($period) {
             case 'week':
                 $startDate = Carbon::now()->subWeek();
@@ -329,7 +338,7 @@ class AdminController extends Controller
                 $groupBy = 'date';
                 $format = 'Y-m-d';
         }
-        
+
         // Revenue over time
         $revenue = Payment::where('status', 'completed')
             ->where('created_at', '>=', $startDate)
@@ -340,7 +349,7 @@ class AdminController extends Controller
             ->map(function($group) {
                 return $group->sum('amount');
             });
-            
+
         // Deliveries by status
         $deliveriesByStatus = Delivery::select('status', \DB::raw('count(*) as count'))
             ->where('created_at', '>=', $startDate)
@@ -348,7 +357,7 @@ class AdminController extends Controller
             ->get()
             ->pluck('count', 'status')
             ->toArray();
-            
+
         // New users over time
         $newUsers = User::where('created_at', '>=', $startDate)
             ->get()
@@ -358,7 +367,7 @@ class AdminController extends Controller
             ->map(function($group) {
                 return $group->count();
             });
-            
+
         return response()->json([
             'revenue' => $revenue,
             'deliveries_by_status' => $deliveriesByStatus,
@@ -373,13 +382,53 @@ class AdminController extends Controller
     public function getNotifications(Request $request)
     {
         $admin = $request->user();
-        
+
         $notifications = $admin->notifications()
             ->orderBy('created_at', 'desc')
             ->get();
-        
+
         return response()->json([
             'notifications' => $notifications
         ]);
     }
+    /**
+     * Verify a driver
+     */
+    public function verifyDriver($id)
+    {
+        $user = User::where('user_type', 'driver')->find($id);
+
+        if (!$user || !$user->driverProfile) {
+            return response()->json(['message' => 'Driver not found.'], 404);
+        }
+
+        $user->driverProfile->is_verified = true;
+        $user->driverProfile->save();
+
+        return response()->json([
+            'message' => 'Driver verified successfully.',
+            'driver' => $user->load('driverProfile'),
+        ]);
+    }
+
+    /**
+     * Unverify a driver
+     */
+    public function unverifyDriver($id)
+    {
+        $user = User::where('user_type', 'driver')->find($id);
+
+        if (!$user || !$user->driverProfile) {
+            return response()->json(['message' => 'Driver not found.'], 404);
+        }
+
+        $user->driverProfile->is_verified = false;
+        $user->driverProfile->save();
+
+        return response()->json([
+            'message' => 'Driver unverified successfully.',
+            'driver' => $user->load('driverProfile'),
+        ]);
+    }
+
 }

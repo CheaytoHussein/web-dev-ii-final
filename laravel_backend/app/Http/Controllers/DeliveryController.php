@@ -21,14 +21,14 @@ class DeliveryController extends Controller
             'package_weight' => 'required|numeric',
             'delivery_type' => 'required|in:standard,express,economy',
         ]);
-        
+
         if ($validator->fails()) {
             return response()->json(['message' => $validator->errors()->first()], 422);
         }
-        
+
         // In a real application, this would call a third-party API like Google Distance Matrix
         // to calculate the distance and then apply pricing logic
-        
+
         // For demo purposes, we'll use a simple pricing model
         $basePrices = [
             'small' => 10.00,
@@ -36,32 +36,32 @@ class DeliveryController extends Controller
             'large' => 20.00,
             'extra_large' => 30.00,
         ];
-        
+
         $typeMultipliers = [
             'economy' => 0.8,
             'standard' => 1.0,
             'express' => 1.5,
         ];
-        
+
         // Get base price for package size
         $basePrice = $basePrices[$request->package_size];
-        
+
         // Add weight charge ($1 per kg after 1kg)
         $weightCharge = max(0, $request->package_weight - 1) * 1.00;
-        
+
         // Apply delivery type multiplier
         $typeMultiplier = $typeMultipliers[$request->delivery_type];
-        
+
         // Calculate simulated distance-based charge
         // In production, this would be replaced with actual distance calculation
         $distanceCharge = 5.00;
-        
+
         // Calculate total price
         $totalPrice = ($basePrice + $weightCharge + $distanceCharge) * $typeMultiplier;
-        
+
         // Round to 2 decimal places
         $totalPrice = round($totalPrice, 2);
-        
+
         return response()->json([
             'price' => $totalPrice,
             'breakdown' => [
@@ -89,79 +89,85 @@ public function show($id)
 
     public function getAvailableDrivers(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'latitude' => 'nullable|numeric|between:-90,90',
-            'longitude' => 'nullable|numeric|between:-180,180',
-            'radius' => 'nullable|numeric|min:1|max:50',
-            'vehicle_type' => 'nullable|string',
-        ]);
-        
-        if ($validator->fails()) {
-            return response()->json(['message' => $validator->errors()->first()], 422);
-        }
-        
-        // Get available and verified drivers
-        $query = User::where('user_type', 'driver')
-            ->whereHas('driverProfile', function($q) use ($request) {
-                $q->where('is_available', true)
-                  ->where('is_verified', true);
-                
-                if ($request->vehicle_type) {
-                    $q->where('vehicle_type', $request->vehicle_type);
-                }
-            })
-            ->with(['driverProfile']);
-        
-        $drivers = $query->get();
-        
-        // Calculate distance if coordinates provided
-        if ($request->latitude && $request->longitude) {
-            $drivers = $drivers->map(function($driver) use ($request) {
-                // Simple distance calculation (in real app, use Haversine formula)
-                $distance = 0;
-                if ($driver->driverProfile->latitude && $driver->driverProfile->longitude) {
-                    $distance = $this->calculateDistance(
-                        $request->latitude, 
-                        $request->longitude,
+        try {
+            $validator = Validator::make($request->all(), [
+                'latitude' => 'nullable|numeric|between:-90,90',
+                'longitude' => 'nullable|numeric|between:-180,180',
+                'radius' => 'nullable|numeric|min:1|max:50',
+                'vehicle_type' => 'nullable|string',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $validator->errors()->first()
+                ], 422);
+            }
+
+            // Get available and verified drivers
+            $query = User::where('user_type', 'driver')
+                ->whereHas('driverProfile', function($q) use ($request) {
+                    $q->where('is_available', true)
+                        ->where('is_verified', true);
+
+                    if ($request->vehicle_type) {
+                        $q->where('vehicle_type', $request->vehicle_type);
+                    }
+                })
+                ->with(['driverProfile']);
+
+            $drivers = $query->get();
+
+            // Transform the data to match frontend expectations
+            $transformedDrivers = $drivers->map(function($driver) use ($request) {
+                // Calculate distance (simplified for demo)
+                $distance = $driver->driverProfile->latitude && $driver->driverProfile->longitude
+                    ? $this->calculateDistance(
+                        $request->latitude ?? 0,
+                        $request->longitude ?? 0,
                         $driver->driverProfile->latitude,
                         $driver->driverProfile->longitude
-                    );
-                } else {
-                    // Random distance for demo
-                    $distance = rand(1, 10);
-                }
-                
+                    )
+                    : rand(1, 10); // Random distance for demo
+
                 return [
-                    'id' => $driver->id,
+                    'id' => (string)$driver->id,
                     'name' => $driver->name,
-                    'rating' => $driver->driverProfile->rating,
+                    'email' => $driver->email,
+                    'phone' => $driver->driverProfile->phone,
+                    'rating' => (float)$driver->driverProfile->rating,
+                    'profile_picture' => $driver->driverProfile->profile_picture,
                     'vehicle_type' => $driver->driverProfile->vehicle_type,
                     'vehicle_model' => $driver->driverProfile->vehicle_model,
-                    'profile_picture' => $driver->driverProfile->profile_picture,
-                    'distance' => round($distance, 1),
-                    'location' => [
-                        'lat' => (float)$driver->driverProfile->latitude,
-                        'lng' => (float)$driver->driverProfile->longitude,
-                    ],
-                    'completedDeliveries' => $driver->driverDeliveries()->where('status', 'delivered')->count(),
-                    'isAvailable' => true,
+                    'is_available' => (bool)$driver->driverProfile->is_available,
+                    'distance' => (float)round($distance, 1),
+                    'latitude' => (float)$driver->driverProfile->latitude,
+                    'longitude' => (float)$driver->driverProfile->longitude,
+                    'completed_deliveries' => (int)$driver->driverDeliveries()->where('status', 'delivered')->count(),
                 ];
             });
-            
-            // Filter by radius
+
+            // Filter by radius if provided
             if ($request->radius) {
-                $drivers = $drivers->filter(function($driver) use ($request) {
+                $transformedDrivers = $transformedDrivers->filter(function($driver) use ($request) {
                     return $driver['distance'] <= $request->radius;
                 });
             }
-            
+
             // Sort by distance
-            $drivers = $drivers->sortBy('distance')->values();
+            $transformedDrivers = $transformedDrivers->sortBy('distance')->values();
+
+            return response()->json([
+                'success' => true,
+                'drivers' => $transformedDrivers
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch drivers: ' . $e->getMessage()
+            ], 500);
         }
-        
-        return response()->json([
-            'drivers' => $drivers
-        ]);
     }
 
     /**
@@ -172,21 +178,21 @@ public function show($id)
         $validator = Validator::make($request->all(), [
             'tracking_number' => 'required|string',
         ]);
-        
+
         if ($validator->fails()) {
             return response()->json(['message' => $validator->errors()->first()], 422);
         }
-        
+
         $delivery = Delivery::where('tracking_number', $request->tracking_number)
             ->with(['statusHistory' => function($query) {
                 $query->orderBy('created_at', 'desc');
             }])
             ->first();
-        
+
         if (!$delivery) {
             return response()->json(['message' => 'Delivery not found'], 404);
         }
-        
+
         // Return limited information for public tracking
         return response()->json([
             'tracking_number' => $delivery->tracking_number,
@@ -209,10 +215,10 @@ public function show($id)
         // In production, use Haversine formula for accurate distance
         $latDiff = abs($lat1 - $lat2);
         $lonDiff = abs($lon1 - $lon2);
-        
+
         // Very simplified calculation - just for demo
         $distance = sqrt(($latDiff * $latDiff) + ($lonDiff * $lonDiff)) * 111.2; // rough miles conversion
-        
+
         return $distance;
     }
 }

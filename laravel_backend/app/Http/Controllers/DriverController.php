@@ -9,7 +9,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
-
+use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 class DriverController extends Controller
 {
     /**
@@ -17,112 +18,131 @@ class DriverController extends Controller
      */
     public function getDashboard()
     {
-        $user = Auth::user();
+        try {
+            $user = Auth::user();
 
-        if (!$user->isDriver()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+            if (!$user) {
+                return response()->json(['message' => 'Unauthenticated'], 401);
+            }
+
+            if (!$user->isDriver()) {
+                return response()->json(['message' => 'Unauthorized - User is not a driver'], 403);
+            }
+
+            $driverProfile = $user->driverProfile;
+            if (!$driverProfile) {
+                return response()->json(['message' => 'Driver profile not found'], 404);
+            }
+
+            $completedDeliveries = $user->driverDeliveries()->where('status', 'delivered')->count();
+            $activeDeliveries = $user->driverDeliveries()->whereIn('status', ['accepted', 'picked_up', 'in_transit'])->count();
+
+            // Calculate earnings for today and this week
+            $todayEarnings = $user->driverEarnings()
+                ->whereDate('created_at', Carbon::today())
+                ->where('status', 'completed')
+                ->sum('net_amount');
+
+            $weekEarnings = $user->driverEarnings()
+                ->whereBetween('created_at', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()])
+                ->where('status', 'completed')
+                ->sum('net_amount');
+
+            $totalEarnings = $user->driverEarnings()
+                ->where('status', 'completed')
+                ->sum('net_amount');
+
+            return response()->json([
+                'driver' => [
+                    'name' => $user->name,
+                    'is_verified' => $driverProfile->is_verified,
+                    'is_available' => $driverProfile->is_available,
+                    'rating' => (float)$driverProfile->rating,
+                    'vehicle_info' => [
+                        'type' => $driverProfile->vehicle_type,
+                        'model' => $driverProfile->vehicle_model,
+                        'color' => $driverProfile->vehicle_color,
+                        'plate_number' => $driverProfile->vehicle_plate_number,
+                    ],
+                    'profile_picture' => $driverProfile->profile_picture,
+                ],
+                'stats' => [
+                    'completed_deliveries' => $completedDeliveries,
+                    'active_deliveries' => $activeDeliveries,
+                    'today_earnings' => $todayEarnings,
+                    'week_earnings' => $weekEarnings,
+                    'total_earnings' => $totalEarnings,
+                ],
+                'recent_deliveries' => $user->driverDeliveries()
+                    ->with(['client:id,name,phone', 'payment:id,delivery_id,amount,status'])
+                    ->orderBy('created_at', 'desc')
+                    ->limit(5)
+                    ->get()
+                    ->map(function ($delivery) {
+                        return [
+                            'id' => $delivery->id,
+                            'tracking_number' => $delivery->tracking_number,
+                            'status' => $delivery->status,
+                            'created_at' => $delivery->created_at->toISOString(),
+                            'pickup_address' => $delivery->pickup_address,
+                            'delivery_address' => $delivery->delivery_address,
+                            'price' => (float)$delivery->price,
+                            'client' => $delivery->client,
+                            'payment' => $delivery->payment,
+                        ];
+                    })
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to load dashboard',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        $driverProfile = $user->driverProfile;
-        $completedDeliveries = $user->driverDeliveries()->where('status', 'delivered')->count();
-        $activeDeliveries = $user->driverDeliveries()->whereIn('status', ['pending','accepted', 'picked_up', 'in_transit'])->count();
-        $pendingDeliveries = $user->driverDeliveries()->where('status', 'pending')->count();
-
-        
-        // Calculate earnings for today and this week
-        $todayEarnings = $user->driverEarnings()
-            ->whereDate('created_at', Carbon::today())
-            ->sum('amount');
-        
-        $weekEarnings = $user->driverEarnings()
-            ->whereBetween('created_at', [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()])
-            ->sum('amount');
-
-        return response()->json([
-            'driver' => [
-                'name' => $user->name,
-                'is_verified' => $driverProfile->is_verified,
-                'is_available' => $driverProfile->is_available,
-                'rating' => $driverProfile->rating,
-                'vehicle_info' => [
-                    'type' => $driverProfile->vehicle_type,
-                    'model' => $driverProfile->vehicle_model,
-                    'color' => $driverProfile->vehicle_color,
-                    'plate_number' => $driverProfile->vehicle_plate_number,
-                ]
-            ],
-            'stats' => [
-                'pending_deliveries' => $pendingDeliveries,
-                'completed_deliveries' => $completedDeliveries,
-                'active_deliveries' => $activeDeliveries,
-                'today_earnings' => $todayEarnings,
-                'week_earnings' => $weekEarnings,
-            ],
-            'recent_deliveries' => $user->driverDeliveries()
-                ->with(['client:id,name', 'payment:id,delivery_id,amount'])
-                ->orderBy('created_at', 'desc')
-                ->limit(5)
-                ->get()
-        ]);
-    }public function updateProfile(Request $request)
-{
-    $user = Auth::user();
-
-    if (!$user->isDriver()) {
-        return response()->json(['message' => 'Unauthorized'], 403);
     }
-
-    // Validate incoming data
-    $validatedData = $request->validate([
-        'vehicle_type' => 'required|string|max:255',
-        'vehicle_model' => 'required|string|max:255',
-        'vehicle_color' => 'required|string|max:255',
-        'vehicle_plate_number' => 'required|string|max:255',
-        'driver_license' => 'required|string|max:255',
-        'is_available' => 'required|boolean',
-    ]);
-
-    // Update the driver's profile
-    $driverProfile = $user->driverProfile;
-    $driverProfile->update([
-        'vehicle_type' => $validatedData['vehicle_type'],
-        'vehicle_model' => $validatedData['vehicle_model'],
-        'vehicle_color' => $validatedData['vehicle_color'],
-        'vehicle_plate_number' => $validatedData['vehicle_plate_number'],
-        'driver_license' => $validatedData['driver_license'],
-        'is_available' => $validatedData['is_available'],
-    ]);
-
-    return response()->json(['message' => 'Profile updated successfully', 'driverProfile' => $driverProfile]);
-}
 
     /**
      * Update driver availability
      */
     public function updateAvailability(Request $request)
     {
-        $user = Auth::user();
+        try {
+            $user = Auth::user();
 
-        if (!$user->isDriver()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+            if (!$user) {
+                return response()->json(['message' => 'Unauthenticated'], 401);
+            }
+
+            if (!$user->isDriver()) {
+                return response()->json(['message' => 'Unauthorized - User is not a driver'], 403);
+            }
+
+            $validator = Validator::make($request->all(), [
+                'is_available' => 'required|boolean',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['errors' => $validator->errors()], 422);
+            }
+
+            $driverProfile = $user->driverProfile;
+            if (!$driverProfile) {
+                return response()->json(['message' => 'Driver profile not found'], 404);
+            }
+
+            $driverProfile->update([
+                'is_available' => $request->is_available
+            ]);
+
+            return response()->json([
+                'message' => 'Availability updated successfully',
+                'is_available' => $driverProfile->is_available
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to update availability',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        $validator = Validator::make($request->all(), [
-            'available' => 'required|boolean',
-        ]);
-        
-        if ($validator->fails()) {
-            return response()->json(['message' => $validator->errors()->first()], 422);
-        }
-
-        $user->driverProfile->update([
-            'is_available' => $request->available
-        ]);
-
-        return response()->json([
-            'message' => 'Availability updated successfully',
-            'is_available' => $request->available
-        ]);
     }
 
     /**
@@ -130,147 +150,264 @@ class DriverController extends Controller
      */
     public function updateLocation(Request $request)
     {
-        $user = Auth::user();
+        try {
+            $user = Auth::user();
 
-        if (!$user->isDriver()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+            if (!$user) {
+                return response()->json(['message' => 'Unauthenticated'], 401);
+            }
+
+            if (!$user->isDriver()) {
+                return response()->json(['message' => 'Unauthorized - User is not a driver'], 403);
+            }
+
+            $validator = Validator::make($request->all(), [
+                'latitude' => 'required|numeric|between:-90,90',
+                'longitude' => 'required|numeric|between:-180,180',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['errors' => $validator->errors()], 422);
+            }
+
+            $driverProfile = $user->driverProfile;
+            if (!$driverProfile) {
+                return response()->json(['message' => 'Driver profile not found'], 404);
+            }
+
+            $driverProfile->update([
+                'latitude' => $request->latitude,
+                'longitude' => $request->longitude,
+                'last_location_update' => now(),
+            ]);
+
+            return response()->json([
+                'message' => 'Location updated successfully',
+                'location' => [
+                    'latitude' => $driverProfile->latitude,
+                    'longitude' => $driverProfile->longitude,
+                    'updated_at' => $driverProfile->last_location_update
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to update location',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        $validator = Validator::make($request->all(), [
-            'latitude' => 'required|numeric|between:-90,90',
-            'longitude' => 'required|numeric|between:-180,180',
-        ]);
-        
-        if ($validator->fails()) {
-            return response()->json(['message' => $validator->errors()->first()], 422);
-        }
-
-        $user->driverProfile->update([
-            'latitude' => $request->latitude,
-            'longitude' => $request->longitude,
-            'last_location_update' => now(),
-        ]);
-
-        return response()->json([
-            'message' => 'Location updated successfully'
-        ]);
     }
 
     /**
-     * Get driver deliveries
+     * Get driver deliveries with filters
      */
     public function getDeliveries(Request $request)
     {
-        $user = Auth::user();
+        try {
+            $user = Auth::user();
 
-        if (!$user->isDriver()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
+            if (!$user || !$user->isDriver()) {
+                return response()->json(['message' => 'Unauthorized access'], 403);
+            }
 
-        $status = $request->query('status');
-        $query = $user->driverDeliveries()->with(['client:id,name', 'payment:id,delivery_id,amount,status']);
-        
-        if ($status) {
-            $query->where('status', $status);
+            $status = $request->query('status');
+            $dateFrom = $request->query('date_from');
+            $dateTo = $request->query('date_to');
+            $perPage = $request->query('per_page', 15);
+
+            $query = $user->driverDeliveries()
+                ->with(['client:id,name,phone', 'payment:id,delivery_id,amount,status'])
+                ->orderBy('created_at', 'desc');
+
+            if ($status) {
+                $query->where('status', $status);
+            }
+
+            if ($dateFrom) {
+                $query->whereDate('created_at', '>=', Carbon::parse($dateFrom));
+            }
+
+            if ($dateTo) {
+                $query->whereDate('created_at', '<=', Carbon::parse($dateTo));
+            }
+
+            $deliveries = $query->paginate($perPage);
+
+            return response()->json([
+                'deliveries' => $deliveries->map(function ($delivery) {
+                    return [
+                        'id' => $delivery->id,
+                        'tracking_number' => $delivery->tracking_number,
+                        'pickup_address' => $delivery->pickup_address,
+                        'delivery_address' => $delivery->delivery_address,
+                        'recipient_name' => $delivery->recipient_name,
+                        'status' => $delivery->status,
+                        'created_at' => $delivery->created_at->toISOString(),
+                        'price' => (float)$delivery->price,
+                        'package_size' => $delivery->package_size,
+                        'package_weight' => (float)$delivery->package_weight,
+                        'delivery_date' => $delivery->delivery_date,
+                        'delivery_time' => $delivery->delivery_time,
+                        'client' => $delivery->client,
+                        'payment' => $delivery->payment,
+                    ];
+                }),
+                'pagination' => [
+                    'total' => $deliveries->total(),
+                    'per_page' => $deliveries->perPage(),
+                    'current_page' => $deliveries->currentPage(),
+                    'last_page' => $deliveries->lastPage(),
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to fetch deliveries',
+                'error' => $e->getMessage()
+            ], 500);
         }
-        
-        $deliveries = $query->orderBy('created_at', 'desc')->paginate(10);
-        
-        return response()->json($deliveries);
     }
 
     /**
      * Get delivery details
      */
     public function getDelivery($id)
-{
-    $user = Auth::user();
+    {
+        try {
+            $user = Auth::user();
 
-    if (!$user->isDriver()) {
-        return response()->json(['message' => 'Unauthorized'], 403);
+            if (!$user || !$user->isDriver()) {
+                return response()->json(['message' => 'Unauthorized access'], 403);
+            }
+
+            $delivery = $user->driverDeliveries()
+                ->with([
+                    'client:id,name,phone',
+                    'payment:id,delivery_id,amount,status',
+                    'statusHistory' => function($query) {
+                        $query->orderBy('created_at', 'desc');
+                    }
+                ])
+                ->find($id);
+
+            if (!$delivery) {
+                return response()->json(['message' => 'Delivery not found'], 404);
+            }
+
+            return response()->json([
+                'delivery' => [
+                    'id' => $delivery->id,
+                    'tracking_number' => $delivery->tracking_number,
+                    'pickup_address' => $delivery->pickup_address,
+                    'pickup_contact' => $delivery->pickup_contact,
+                    'pickup_phone' => $delivery->pickup_phone,
+                    'delivery_address' => $delivery->delivery_address,
+                    'recipient_name' => $delivery->recipient_name,
+                    'recipient_phone' => $delivery->recipient_phone,
+                    'package_size' => $delivery->package_size,
+                    'package_weight' => (float)$delivery->package_weight,
+                    'package_description' => $delivery->package_description,
+                    'is_fragile' => (bool)$delivery->is_fragile,
+                    'delivery_type' => $delivery->delivery_type,
+                    'delivery_date' => $delivery->delivery_date,
+                    'delivery_time' => $delivery->delivery_time,
+                    'delivery_instructions' => $delivery->delivery_instructions,
+                    'price' => (float)$delivery->price,
+                    'status' => $delivery->status,
+                    'payment_status' => $delivery->payment_status,
+                    'created_at' => $delivery->created_at->toISOString(),
+                    'client' => $delivery->client,
+                    'payment' => $delivery->payment,
+                    'status_history' => $delivery->statusHistory->map(function ($status) {
+                        return [
+                            'id' => $status->id,
+                            'status' => $status->status,
+                            'location' => $status->location,
+                            'notes' => $status->notes,
+                            'created_at' => $status->created_at->toISOString()
+                        ];
+                    })
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to fetch delivery details',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
-    $delivery = $user->driverDeliveries()
-        ->with([
-            'client:id,name,phone,email',
-            'payment:id,delivery_id,amount,status',
-            'statusHistory' => function($query) {
-                $query->orderBy('created_at', 'desc');
-            }
-        ])
-        ->findOrFail($id);
-
-    // Ensure that the delivery object contains the new fields
-    $deliveryDetails = $delivery->toArray();
-    $deliveryDetails['package_size'] = $delivery->package_size;
-    $deliveryDetails['package_description'] = $delivery->package_description;
-    $deliveryDetails['delivery_instructions'] = $delivery->delivery_instructions;
-    $deliveryDetails['price'] = $delivery->price;
-
-    return response()->json([
-        'delivery' => $deliveryDetails
-    ]);
-}
-
-public function getActiveDelivery(Request $request)
-{
-    // Fetch active delivery data, e.g. based on the authenticated driver
-    $driver = $request->user();  // Assuming you have a driver logged in
-    $activeDelivery = Delivery::where('driver_id', $driver->id)
-        ->where('status', '!=', 'delivered')
-        ->first();
-
-    return response()->json(['delivery' => $activeDelivery]);
-}
-
+    /**
+     * Accept a delivery request
+     */
     /**
      * Accept a delivery request
      */
     public function acceptDelivery($id)
     {
-        $user = Auth::user();
+        try {
+            $user = Auth::user();
 
-        if (!$user->isDriver()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+            if (!$user) {
+                return response()->json(['message' => 'Unauthenticated'], 401);
+            }
+
+            if (!$user->isDriver()) {
+                return response()->json(['message' => 'Unauthorized - User is not a driver'], 403);
+            }
+
+            $driverProfile = $user->driverProfile;
+            if (!$driverProfile) {
+                return response()->json(['message' => 'Driver profile not found'], 404);
+            }
+
+            if (!$driverProfile->is_verified) {
+                return response()->json(['message' => 'Your account is not verified yet'], 400);
+            }
+
+            if (!$driverProfile->is_available) {
+                return response()->json(['message' => 'Please set your status to available first'], 400);
+            }
+
+            $delivery = Delivery::where('status', 'pending')
+                ->whereNull('driver_id')
+                ->findOrFail($id);
+
+            DB::transaction(function () use ($user, $delivery, $driverProfile) {
+                $delivery->update([
+                    'driver_id' => $user->id,
+                    'status' => 'accepted',
+                ]);
+
+                $delivery->statusHistory()->create([
+                    'status' => 'accepted',
+                    'notes' => 'Driver accepted the delivery request',
+                    'location' => $driverProfile->vehicle_plate_number,
+                    'latitude' => $driverProfile->latitude,
+                    'longitude' => $driverProfile->longitude,
+                ]);
+
+                $delivery->client->notifications()->create([
+                    'title' => 'Delivery Accepted',
+                    'message' => "Your delivery #{$delivery->tracking_number} has been accepted by a driver",
+                    'type' => 'delivery_update',
+                    'data' => json_encode(['delivery_id' => $delivery->id]),
+                ]);
+            });
+
+            return response()->json([
+                'message' => 'Delivery accepted successfully',
+                'delivery' => $delivery->fresh(['client:id,name', 'payment'])
+            ]);
+
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['message' => 'Delivery not found or already taken'], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to accept delivery',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        $delivery = Delivery::where('status', 'pending')
-            ->findOrFail($id);
-        
-        // Check if driver is verified and available
-        if (!$user->driverProfile->is_verified) {
-            return response()->json(['message' => 'Your account is not verified yet'], 400);
-        }
-        
-        if (!$user->driverProfile->is_available) {
-            return response()->json(['message' => 'Please set your status to available first'], 400);
-        }
-
-        // Update delivery
-        $delivery->update([
-            'driver_id' => $user->id,
-            'status' => 'accepted',
-        ]);
-
-        // Add status history
-        $delivery->statusHistory()->create([
-            'status' => 'accepted',
-            'notes' => 'Driver accepted the delivery request',
-            'location' => null,
-        ]);
-
-        // Create notification for client
-        $delivery->client->notifications()->create([
-            'title' => 'Delivery Accepted',
-            'message' => "Your delivery #{$delivery->tracking_number} has been accepted by a driver",
-            'type' => 'delivery_update',
-            'data' => json_encode(['delivery_id' => $delivery->id]),
-        ]);
-
-        return response()->json([
-            'message' => 'Delivery accepted successfully',
-            'delivery' => $delivery
-        ]);
     }
 
     /**
@@ -278,87 +415,101 @@ public function getActiveDelivery(Request $request)
      */
     public function updateDeliveryStatus(Request $request, $id)
     {
-        $user = Auth::user();
+        try {
+            $user = Auth::user();
 
-        if (!$user->isDriver()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-
-        $delivery = $user->driverDeliveries()->findOrFail($id);
-        
-        $validator = Validator::make($request->all(), [
-            'status' => 'required|in:picked_up,in_transit,delivered',
-            'notes' => 'nullable|string|max:500',
-            'location' => 'nullable|string|max:255',
-        ]);
-        
-        if ($validator->fails()) {
-            return response()->json(['message' => $validator->errors()->first()], 422);
-        }
-
-        // Validate status transition
-        $validTransitions = [
-            'pending' => ['accepted','delivered','in_transit'],
-            'accepted' => ['picked_up','in_transit','delivered'],
-            'picked_up' => ['in_transit'],
-            'in_transit' => ['delivered'],
-            'delivered' => ['in_transit'],
-        ];
-
-        if (!isset($validTransitions[$delivery->status]) || !in_array($request->status, $validTransitions[$delivery->status])) {
-            return response()->json(['message' => 'Invalid status transition'], 422);
-        }
-
-        // Update delivery
-        $delivery->update([
-            'status' => $request->status,
-        ]);
-
-        // Add status history
-        $delivery->statusHistory()->create([
-            'status' => $request->status,
-            'notes' => $request->notes,
-            'location' => $request->location,
-        ]);
-
-        // Create notification for client
-        $statusMessages = [
-            'picked_up' => 'Driver has picked up your package',
-            'in_transit' => 'Your package is on the way',
-            'delivered' => 'Your package has been delivered',
-        ];
-
-        $delivery->client->notifications()->create([
-            'title' => 'Delivery Update',
-            'message' => $statusMessages[$request->status] . " - #{$delivery->tracking_number}",
-            'type' => 'delivery_update',
-            'data' => json_encode(['delivery_id' => $delivery->id]),
-        ]);
-
-        // If delivered, create driver earnings record
-        if ($request->status === 'delivered') {
-            $payment = $delivery->payment;
-            if ($payment) {
-                // Typically driver gets 80% of the payment
-                $driverShare = $payment->amount * 0.80;
-                
-                $user->driverEarnings()->create([
-                    'delivery_id' => $delivery->id,
-            'amount' => $payment->amount,  // Total amount of the payment
-            'commission' => $payment->amount * 0.20,  // Assuming 20% commission
-            'net_amount' => $driverShare,  // Driver's share after commission
-            'status' => 'paid',  // You can track the status of the payout
-            'payout_date' => Carbon::now(),  // Date of the payout
-            'payout_method' => 'bank_transfer',  // You can adjust the payout method based on your requirements
-            'transaction_id' => uniqid(),  // Transaction ID, can be unique
-        ]);
+            if (!$user) {
+                return response()->json(['message' => 'Unauthenticated'], 401);
             }
-        }
 
-        return response()->json([
-            'message' => 'Delivery status updated successfully',
-            'delivery' => $delivery
-        ]);
+            if (!$user->isDriver()) {
+                return response()->json(['message' => 'Unauthorized - User is not a driver'], 403);
+            }
+
+            $validator = Validator::make($request->all(), [
+                'status' => 'required|in:picked_up,in_transit,delivered',
+                'notes' => 'nullable|string|max:500',
+                'location' => 'nullable|string|max:255',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['errors' => $validator->errors()], 422);
+            }
+
+            $delivery = $user->driverDeliveries()->findOrFail($id);
+            $driverProfile = $user->driverProfile;
+
+            // Validate status transition
+            $validTransitions = [
+                'accepted' => ['picked_up'],
+                'picked_up' => ['in_transit'],
+                'in_transit' => ['delivered'],
+            ];
+
+            if (!isset($validTransitions[$delivery->status])) {
+                return response()->json(['message' => 'Invalid current status for transition'], 400);
+            }
+
+            if (!in_array($request->status, $validTransitions[$delivery->status])) {
+                return response()->json(['message' => 'Invalid status transition'], 400);
+            }
+
+            DB::transaction(function () use ($user, $request, $delivery, $driverProfile) {
+                $delivery->update(['status' => $request->status]);
+
+                $delivery->statusHistory()->create([
+                    'status' => $request->status,
+                    'notes' => $request->notes,
+                    'location' => $request->location ?? $driverProfile->vehicle_plate_number,
+                    'latitude' => $driverProfile->latitude,
+                    'longitude' => $driverProfile->longitude,
+                ]);
+
+                $statusMessages = [
+                    'picked_up' => 'Driver has picked up your package',
+                    'in_transit' => 'Your package is on the way',
+                    'delivered' => 'Your package has been delivered',
+                ];
+
+                $delivery->client->notifications()->create([
+                    'title' => 'Delivery Update',
+                    'message' => $statusMessages[$request->status] . " - #{$delivery->tracking_number}",
+                    'type' => 'delivery_update',
+                    'data' => json_encode(['delivery_id' => $delivery->id]),
+                ]);
+
+                if ($request->status === 'delivered') {
+                    $payment = $delivery->payment;
+                    if ($payment && $payment->status === 'paid') {
+                        $commissionRate = 0.20; // 20% commission
+                        $commission = $payment->amount * $commissionRate;
+                        $netAmount = $payment->amount - $commission;
+
+                        $user->driverEarnings()->create([
+                            'delivery_id' => $delivery->id,
+                            'amount' => $payment->amount,
+                            'commission' => $commission,
+                            'net_amount' => $netAmount,
+                            'status' => 'completed',
+                            'notes' => "Payment for delivery #{$delivery->tracking_number}",
+                        ]);
+                    }
+                }
+            });
+
+            return response()->json([
+                'message' => 'Delivery status updated successfully',
+                'delivery' => $delivery->fresh(['client:id,name', 'payment', 'statusHistory'])
+            ]);
+
+        } catch (ModelNotFoundException $e) {
+            return response()->json(['message' => 'Delivery not found'], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to update delivery status',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -366,70 +517,141 @@ public function getActiveDelivery(Request $request)
      */
     public function getEarnings(Request $request)
     {
-        $user = Auth::user();
+        try {
+            $user = Auth::user();
 
-        if (!$user->isDriver()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
+            if (!$user) {
+                return response()->json(['message' => 'Unauthenticated'], 401);
+            }
 
-        $period = $request->query('period', 'week');
-        
-        switch ($period) {
-            case 'today':
-                $start = Carbon::today();
-                $end = Carbon::tomorrow();
-                break;
-            case 'week':
-                $start = Carbon::now()->startOfWeek();
-                $end = Carbon::now()->endOfWeek();
-                break;
-            case 'month':
-                $start = Carbon::now()->startOfMonth();
-                $end = Carbon::now()->endOfMonth();
-                break;
-            case 'year':
-                $start = Carbon::now()->startOfYear();
-                $end = Carbon::now()->endOfYear();
-                break;
-            default:
-                $start = Carbon::now()->startOfWeek();
-                $end = Carbon::now()->endOfWeek();
+            if (!$user->isDriver()) {
+                return response()->json(['message' => 'Unauthorized - User is not a driver'], 403);
+            }
+
+            $period = $request->query('period', 'week');
+            $status = $request->query('status', 'completed');
+            $perPage = $request->query('per_page', 15);
+
+            switch ($period) {
+                case 'today':
+                    $start = Carbon::today();
+                    $end = Carbon::tomorrow();
+                    break;
+                case 'week':
+                    $start = Carbon::now()->startOfWeek();
+                    $end = Carbon::now()->endOfWeek();
+                    break;
+                case 'month':
+                    $start = Carbon::now()->startOfMonth();
+                    $end = Carbon::now()->endOfMonth();
+                    break;
+                case 'year':
+                    $start = Carbon::now()->startOfYear();
+                    $end = Carbon::now()->endOfYear();
+                    break;
+                case 'all':
+                    $start = null;
+                    $end = null;
+                    break;
+                default:
+                    $start = Carbon::now()->startOfWeek();
+                    $end = Carbon::now()->endOfWeek();
+            }
+
+            $query = $user->driverEarnings()
+                ->with('delivery:id,tracking_number,pickup_address,delivery_address')
+                ->when($status, function ($q) use ($status) {
+                    $q->where('status', $status);
+                })
+                ->when($start && $end, function ($q) use ($start, $end) {
+                    $q->whereBetween('created_at', [$start, $end]);
+                })
+                ->orderBy('created_at', 'desc');
+
+            $earnings = $query->paginate($perPage);
+            $total = $query->sum('net_amount');
+
+            return response()->json([
+                'earnings' => $earnings->map(function ($earning) {
+                    return [
+                        'id' => $earning->id,
+                        'amount' => (float)$earning->amount,
+                        'commission' => (float)$earning->commission,
+                        'net_amount' => (float)$earning->net_amount,
+                        'status' => $earning->status,
+                        'created_at' => $earning->created_at->toISOString(),
+                        'delivery' => $earning->delivery,
+                    ];
+                }),
+                'total' => (float)$total,
+                'period' => $period,
+                'pagination' => [
+                    'total' => $earnings->total(),
+                    'per_page' => $earnings->perPage(),
+                    'current_page' => $earnings->currentPage(),
+                    'last_page' => $earnings->lastPage(),
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to fetch earnings',
+                'error' => $e->getMessage()
+            ], 500);
         }
-        
-        $earnings = $user->driverEarnings()
-            ->with('delivery:id,tracking_number,pickup_address,delivery_address')
-            ->whereBetween('created_at', [$start, $end])
-            ->orderBy('created_at', 'desc')
-            ->paginate(15);
-        
-        $total = $user->driverEarnings()
-            ->whereBetween('created_at', [$start, $end])
-            ->sum('amount');
-        
-        return response()->json([
-            'earnings' => $earnings,
-            'total' => $total,
-            'period' => $period,
-        ]);
     }
 
     /**
      * Get driver notifications
      */
-    public function getNotifications()
+    public function getNotifications(Request $request)
     {
-        $user = Auth::user();
+        try {
+            $user = Auth::user();
 
-        if (!$user->isDriver()) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+            if (!$user) {
+                return response()->json(['message' => 'Unauthenticated'], 401);
+            }
+
+            if (!$user->isDriver()) {
+                return response()->json(['message' => 'Unauthorized - User is not a driver'], 403);
+            }
+
+            $perPage = $request->query('per_page', 20);
+            $unreadOnly = $request->query('unread_only', false);
+
+            $query = $user->notifications()
+                ->orderBy('created_at', 'desc');
+
+            if ($unreadOnly) {
+                $query->whereNull('read_at');
+            }
+
+            $notifications = $query->paginate($perPage);
+
+            return response()->json([
+                'notifications' => $notifications->map(function ($notification) {
+                    return [
+                        'id' => $notification->id,
+                        'title' => $notification->title,
+                        'message' => $notification->message,
+                        'type' => $notification->type,
+                        'data' => json_decode($notification->data),
+                        'read_at' => $notification->read_at,
+                        'created_at' => $notification->created_at->toISOString(),
+                    ];
+                }),
+                'pagination' => [
+                    'total' => $notifications->total(),
+                    'per_page' => $notifications->perPage(),
+                    'current_page' => $notifications->currentPage(),
+                    'last_page' => $notifications->lastPage(),
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to fetch notifications',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        $notifications = $user->notifications()
-            ->orderBy('created_at', 'desc')
-            ->paginate(20);
-        
-        return response()->json([
-            'notifications' => $notifications
-        ]);
     }
 }

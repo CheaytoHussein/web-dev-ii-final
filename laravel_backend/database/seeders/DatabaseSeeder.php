@@ -5,85 +5,118 @@ namespace Database\Seeders;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use App\Models\DriverProfile;
 
 class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // Seed the Admin User (Check if it already exists)
-        if (!User::where('email', 'admin@example.com')->exists()) {
-            User::create([
-                'name' => 'Admin User',
-                'email' => 'admin@example.com',
-                'phone' => '1234567890',
-                'password' => Hash::make('Admin123!'),
-                'user_type' => 'admin',
-                'email_verified_at' => now(),
-            ]);
-        }
+        User::create([
+            'name' => 'Admin User',
+            'email' => 'admin@example.com',
+            'phone' => '1234567890',
+            'password' => Hash::make('Admin123!'),
+            'user_type' => 'admin',
+            'email_verified_at' => now(),
+        ]);
 
-        // Seed the Client User (Check if it already exists)
-        if (!User::where('email', 'client@example.com')->exists()) {
-            User::create([
-                'name' => 'Client User',
-                'email' => 'client@example.com',
-                'phone' => '1234567899',
-                'password' => Hash::make('Admin123!'),
-                'user_type' => 'client',
-                'email_verified_at' => now(),
-            ]);
-        }
+        User::create([
+            'name' => 'Client User',
+            'email' => 'client@example.com',
+            'phone' => '1234567899',
+            'password' => Hash::make('Admin123!'),
+            'user_type' => 'client',
+            'email_verified_at' => now(),
+        ]);
 
-        // Seed the Driver User (Check if it already exists)
-        if (!User::where('email', 'driver@example.com')->exists()) {
-            User::create([
-                'name' => 'Driver User',
-                'email' => 'driver@example.com',
-                'phone' => '1234567898',
-                'password' => Hash::make('Admin123!'),
-                'user_type' => 'driver',
-                'email_verified_at' => now(),
-            ]);
-        }
+        // First Lebanese driver
+        $driver1 = User::create([
+            'name' => 'Ahmad',
+            'email' => 'driver1@example.com',
+            'phone' => '0312345678',
+            'password' => Hash::make('Admin123!'),
+            'user_type' => 'driver',
+            'email_verified_at' => now(),
+        ]);
 
-        // Seed 3 Additional Clients (Check if they already exist)
-        $clients = [
-            ['name' => 'John Doe', 'email' => 'johndoe@gmail.com', 'phone' => '1234567891'],
-            ['name' => 'Jane Smith', 'email' => 'janesmith@gmail.com', 'phone' => '1234567892'],
-            ['name' => 'Michael Johnson', 'email' => 'michaeljohnson@gmail.com', 'phone' => '1234567893']
-        ];
+        DriverProfile::create([
+            'user_id' => $driver1->id,
+            'address' => 'Beirut, Lebanon',
+            'vehicle_type' => 'car',
+            'vehicle_model' => 'Peugeot 208',
+            'vehicle_color' => 'Red',
+            'vehicle_plate_number' => 'B1234567',
+            'driver_license' => 'LBN9876543',
+            'profile_picture' => 'default.jpg',
+            'rating' => 4.9,
+            'is_verified' => true,
+            'is_available' => true,
+            'latitude' => 33.8888,
+            'longitude' => 35.4941,
+            'last_location_update' => now(),
+        ]);
 
-        foreach ($clients as $client) {
-            if (!User::where('email', $client['email'])->exists()) {
-                User::create([
-                    'name' => $client['name'],
-                    'email' => $client['email'],
-                    'phone' => $client['phone'],
-                    'password' => Hash::make('Admin123!'),
-                    'user_type' => 'client',
-                    'email_verified_at' => now(),
-                ]);
-            }
-        }
+        // Second Lebanese driver
+        $driver2 = User::create([
+            'name' => 'Ali',
+            'email' => 'driver2@example.com',
+            'phone' => '0323456789', // Another mock Lebanese phone number
+            'password' => Hash::make('Admin123!'),
+            'user_type' => 'driver',
+            'email_verified_at' => now(),
+        ]);
 
-        // Seed 3 Additional Drivers (Check if they already exist)
-        $drivers = [
-            ['name' => 'Ethan Brown', 'email' => 'ethanbrown@gmail.com', 'phone' => '1234567894'],
-            ['name' => 'Olivia Davis', 'email' => 'oliviadavis@gmail.com', 'phone' => '1234567895'],
-            ['name' => 'Liam Wilson', 'email' => 'liamwilson@gmail.com', 'phone' => '1234567896']
-        ];
+        DriverProfile::create([
+            'user_id' => $driver2->id,
+            'address' => 'Tripoli, Lebanon', // Another address in Lebanon
+            'vehicle_type' => 'motorbike',
+            'vehicle_model' => 'Honda CBR',
+            'vehicle_color' => 'Black',
+            'vehicle_plate_number' => 'T5678901',
+            'driver_license' => 'LBN1122334',
+            'profile_picture' => 'default.jpg',
+            'rating' => 4.7, // Example rating
+            'is_verified' => false,
+            'is_available' => false,
+            'latitude' => 34.4383, // Coordinates for Tripoli, Lebanon
+            'longitude' => 35.8447,
+            'last_location_update' => now(),
+        ]);
+        // Third Lebanese driver
+        $driver3 = User::create([
+            'name' => 'Khaled',
+            'email' => 'driver3@example.com',
+            'phone' => '0398765432',
+            'password' => Hash::make('Admin123!'),
+            'user_type' => 'driver',
+            'email_verified_at' => now(),
+        ]);
 
-        foreach ($drivers as $driver) {
-            if (!User::where('email', $driver['email'])->exists()) {
-                User::create([
-                    'name' => $driver['name'],
-                    'email' => $driver['email'],
-                    'phone' => $driver['phone'],
-                    'password' => Hash::make('Admin123!'),
-                    'user_type' => 'driver',
-                    'email_verified_at' => now(),
-                ]);
-            }
-        }
+        DriverProfile::create([
+            'user_id' => $driver3->id,
+            'address' => 'Sidon, Lebanon',
+            'vehicle_type' => 'van',
+            'vehicle_model' => 'Ford Transit',
+            'vehicle_color' => 'White',
+            'vehicle_plate_number' => 'S1122334',
+            'driver_license' => 'LBN5566778',
+            'profile_picture' => 'default.jpg',
+            'rating' => 4.8,
+            'is_verified' => true, // This one can be unverified initially
+            'is_available' => true,
+            'latitude' => 33.5606, // Sidon coordinates
+            'longitude' => 35.3758,
+            'last_location_update' => now(),
+        ]);
+
+
+        $this->call([
+            DeliverySeeder::class,
+            DeliveryStatusSeeder::class,
+            PaymentSeeder::class,
+            NotificationSeeder::class,
+            DriverEarningSeeder::class,
+        ]);
     }
 }
+
