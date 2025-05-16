@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Support\Facades\Mail;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class AuthController extends Controller
 {
@@ -173,7 +174,7 @@ class AuthController extends Controller
         // Check if email is verified
         if (!$user->email_verified_at) {
             Auth::logout();
-            
+
             // Generate new OTP for convenience
             $user->otp = $this->generateOTP();
             $user->otp_expires_at = Carbon::now()->addMinutes(15);
@@ -181,7 +182,7 @@ class AuthController extends Controller
 
             // Send OTP email
             $this->sendOTPEmail($user);
-            
+
             return response()->json([
                 'message' => 'Email not verified. A new verification code has been sent.',
                 'requires_verification' => true,
@@ -211,9 +212,9 @@ class AuthController extends Controller
     public function getUser(Request $request)
     {
         $user = $request->user();
-        
+
         $userData = $user->only(['id', 'name', 'email', 'phone', 'user_type']);
-        
+
         if ($user->isClient()) {
             $userData['profile'] = $user->clientProfile;
         } elseif ($user->isDriver()) {
@@ -234,7 +235,7 @@ class AuthController extends Controller
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
-        
+
         return response()->json(['message' => 'Successfully logged out']);
     }
 
@@ -255,7 +256,7 @@ class AuthController extends Controller
 
         // Generate password reset token
         $token = \Str::random(60);
-        
+
         \DB::table('password_reset_tokens')->updateOrInsert(
             ['email' => $user->email],
             [
@@ -266,7 +267,7 @@ class AuthController extends Controller
 
         // Send password reset email with link
         // Mail::to($user->email)->send(new PasswordResetMail($user, $token));
-        
+
         // For demo purposes, let's just return the token directly
         // In production, you'd only return a success message
         return response()->json([
@@ -337,9 +338,69 @@ class AuthController extends Controller
     private function sendOTPEmail(User $user)
     {
         // In a real application, you would send an actual email
-        // Mail::to($user->email)->send(new VerificationOTPMail($user));
-        
+         Mail::to($user->email)->send(new VerificationOTPMail($user));
+
         // For demonstration purposes, we'll just log the OTP
         \Log::info('Verification OTP for ' . $user->email . ': ' . $user->otp);
+    }
+
+    public function registerDriver(Request $request)
+    {
+
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users',
+            'phone' => 'required|string|max:20',
+            'password' => 'required|string|confirmed|min:8',
+            'address' => 'required|string',
+            'vehicle_type' => 'required|in:sedan,suv,van,truck',
+            'vehicle_model' => 'required|string',
+            'vehicle_color' => 'required|string',
+            'vehicle_plate_number' => 'required|string',
+            'latitude' => 'required|numeric',
+            'longitude' => 'required|numeric',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        DB::beginTransaction();
+
+        try {
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'phone' => $request->phone,
+                'password' => Hash::make($request->password),
+                'user_type' => 'driver',
+                'otp' => $this->generateOTP(),
+                'otp_expires_at' => Carbon::now()->addMinutes(15),
+            ]);
+
+            $driverProfile = DriverProfile::create([
+                'user_id' => $user->id,
+                'address' => $request->address,
+                'vehicle_type' => $request->vehicle_type,
+                'vehicle_model' => $request->vehicle_model,
+                'vehicle_color' => $request->vehicle_color,
+                'vehicle_plate_number' => $request->vehicle_plate_number,
+                'profile_picture' => null, // Add logic if needed
+                'rating' => 3,
+                'is_verified' => false,
+                'is_available' => false,
+                'latitude' => $request->latitude,
+                'longitude' => $request->longitude,
+                'last_location_update' => now(),
+            ]);
+
+            \DB::commit();
+
+            return response()->json(['message' => 'Driver registered successfully'], 201);
+
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            return response()->json(['message' => 'Registration failed', 'error' => $e->getMessage()], 500);
+        }
     }
 }

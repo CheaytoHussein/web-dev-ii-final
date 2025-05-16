@@ -21,7 +21,6 @@ class DriverProfile extends Model
         'vehicle_model',
         'vehicle_color',
         'vehicle_plate_number',
-        'driver_license',
         'profile_picture',
         'rating',
         'is_verified',

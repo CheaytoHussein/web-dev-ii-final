@@ -23,19 +23,13 @@ import ClientProfile from "./pages/client/Profile.tsx";
 import ClientPayments from "./pages/client/Payments.tsx";
 import FindDrivers from "./pages/client/FindDrivers.tsx";
 
-
-
-
-
-
-
-
 // Driver Pages
 import DriverDashboard from "./pages/driver/Dashboard.tsx";
 import DriverProfile from './pages/driver/DriverProfile.tsx';
 import Deliveries from './pages/driver/Deliveries.tsx';
 import DriverDeliveryDetails from "./pages/driver/DriverDeliveryDetails.tsx";
 import EarningsPage from './pages/driver/earnings.tsx';
+import RegisterDriver from './pages/RegisterDriver.tsx';
 
 // Admin Pages
 import AdminDashboard from "./pages/admin/Dashboard.tsx";
@@ -53,7 +47,8 @@ const App = () => (
           
           {/* Auth Routes */}
           <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          <Route path="/register/client" element={<Register />} />
+          <Route path="/register/driver" element={<RegisterDriver />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />

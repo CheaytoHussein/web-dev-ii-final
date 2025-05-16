@@ -119,7 +119,7 @@ const Login = () => {
           </div>
           <div className="text-sm text-muted-foreground">
             Don't have an account?{" "}
-            <Link to={`/register?type=${userType}`} className="text-primary hover:underline">
+            <Link to={userType == 'client' ? `/register/client` : '/register/driver'} className="text-primary hover:underline">
               Register
             </Link>
           </div>
