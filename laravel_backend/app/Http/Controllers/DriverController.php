@@ -370,8 +370,11 @@ class DriverController extends Controller
             }
 
             $delivery = Delivery::where('status', 'pending')
-                ->whereNull('driver_id')
-                ->findOrFail($id);
+    ->where(function ($query) use ($user) {
+        $query->whereNull('driver_id')
+              ->orWhere('driver_id', $user->id);
+    })
+    ->findOrFail($id);
 
             DB::transaction(function () use ($user, $delivery, $driverProfile) {
                 $delivery->update([
@@ -444,6 +447,7 @@ class DriverController extends Controller
                 'accepted' => ['picked_up'],
                 'picked_up' => ['in_transit'],
                 'in_transit' => ['delivered'],
+                'accepted' => ['in_transit'],
             ];
 
             if (!isset($validTransitions[$delivery->status])) {

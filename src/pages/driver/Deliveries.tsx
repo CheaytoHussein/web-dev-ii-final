@@ -40,7 +40,8 @@ const Deliveries = () => {
         if (!response.ok) throw new Error("Failed to fetch deliveries");
 
         const data = await response.json();
-        setDeliveries(Array.isArray(data.data) ? data.data : []);
+        console.log("Deliveries fetched:", data);
+        setDeliveries(Array.isArray(data.deliveries) ? data.deliveries : []);
       } catch (error) {
         toast({
           title: "Error",
