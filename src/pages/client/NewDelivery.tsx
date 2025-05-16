@@ -423,19 +423,20 @@ const NewDelivery = () => {
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="driver">Select a Driver (Optional)</Label>
-                    <Select value={selectedDriver} onValueChange={handleDriverChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a driver or let us assign one" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Auto-assign driver</SelectItem>
-                        {drivers.map((driver: any) => (
-                          <SelectItem key={driver.id} value={driver.id.toString()}>
-                            {driver.name} ({driver.rating} ★)
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Select value={selectedDriver || null} onValueChange={handleDriverChange}>
+  <SelectTrigger>
+    <SelectValue placeholder="Select a driver or let us assign one" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value={null}>Auto-assign driver</SelectItem> {/* Use null here */}
+    {drivers.map((driver: any) => (
+      <SelectItem key={driver.id} value={driver.id.toString()}>
+        {driver.name} ({driver.rating} ★)
+      </SelectItem>
+    ))}
+  </SelectContent>
+</Select>
+
                   </div>
                 </div>
               ) : (
