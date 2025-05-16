@@ -20,6 +20,7 @@ use App\Http\Controllers\AdminController;
 // =======================
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->name('auth.register');
+    Route::post('/register/driver', [AuthController::class, 'registerDriver']);
     Route::post('/verify-email', [AuthController::class, 'verifyEmail'])->name('auth.verifyEmail');
     Route::post('/resend-verification', [AuthController::class, 'resendVerification'])->name('auth.resendVerification');
     Route::post('/login', [AuthController::class, 'login'])->name('auth.login');
@@ -88,7 +89,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/location', [DriverController::class, 'updateLocation'])->name('driver.location.update');
         Route::get('/earnings', [DriverController::class, 'getEarnings'])->name('driver.earnings');
         Route::get('/notifications', [DriverController::class, 'getNotifications'])->name('driver.notifications');
-
     });
 
     // ========== Admin Routes ==========

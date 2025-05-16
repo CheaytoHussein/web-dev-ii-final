@@ -38,6 +38,7 @@ const DriverLayout = ({ children }: DriverLayoutProps) => {
   const [loading, setLoading] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [data, setData] = useState<any>({});
   const [isAvailable, setIsAvailable] = useState(true);
 
   useEffect(() => {
@@ -60,9 +61,10 @@ const DriverLayout = ({ children }: DriverLayoutProps) => {
           throw new Error("Failed to fetch user data");
         }
 
-        const data = await response.json();
-        setUser(data.user);
-        setIsAvailable(data.user.is_available);
+        const user_data = await response.json();
+        setUser(user_data.user);
+        setIsAvailable(user_data.user.is_available);
+        setData(user_data)
       } catch (error) {
         console.error("User fetch error:", error);
         toast({
@@ -103,8 +105,6 @@ const DriverLayout = ({ children }: DriverLayoutProps) => {
     fetchUser();
     fetchNotifications();
   }, [navigate]);
-
-
 
   const handleLogout = async () => {
     try {
@@ -222,7 +222,7 @@ const DriverLayout = ({ children }: DriverLayoutProps) => {
               <span className={`text-sm font-medium ${isAvailable ? "text-green-500" : "text-muted-foreground"}`}>
                 {isAvailable ? "Available" : "Unavailable"}
               </span>
-              <Switch checked={isAvailable} onCheckedChange={toggleAvailability} />
+              <Switch checked={isAvailable} onCheckedChange={toggleAvailability} disabled={!data.user.is_verified}/>
             </div>
             
             {/* Notifications */}
