@@ -365,7 +365,7 @@ const AdminDashboard = () => {
                   className="hover:bg-red-600"
                   onClick={() => {
                     localStorage.clear();
-                    navigate('/admin/login');
+                    navigate('/');
                   }}
               >
                 Logout
