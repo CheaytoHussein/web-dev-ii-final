@@ -105,6 +105,7 @@ interface DashboardData {
 
 const DriverDashboard = () => {
   const navigate = useNavigate();
+  const [selectedStatus, setSelectedStatus] = useState('');
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -118,7 +119,76 @@ const DriverDashboard = () => {
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null);
   const [earningsDialogOpen, setEarningsDialogOpen] = useState(false);
   const [deliveriesDialogOpen, setDeliveriesDialogOpen] = useState(false);
+   const [deliveryId, setDeliveryId] = useState(null);
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalVisible, setIsModalVisible] = useState<boolean>(true);
+
+ const openStatusModal = (id) => {
+  setDeliveryId(id);
+  setIsModalOpen(true);
+};
+const closeStatusModal = () => {
+  setIsModalOpen(false);
+  setSelectedStatus('');
+};
+const handleUpdateStatus = async () => {
+  if (!selectedStatus || !deliveryId) {
+    alert('Please select a status');
+    return;
+  }
+
+  // Normalize the selectedStatus (convert to lowercase and replace spaces with underscores)
+  const normalizedStatus = selectedStatus.toLowerCase().replace(/\s+/g, '_');
+
+  try {
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+      console.error('No token found, redirecting to login');
+      return;
+    }
+
+    const response = await fetch(`http://localhost:8000/api/driver/deliveries/${deliveryId}/status`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        Authorization: `Bearer ${token}`, // Include the token here
+      },
+      body: JSON.stringify({
+        status: normalizedStatus, // Use normalized status here
+      }),
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      let errorMessage = 'Failed to update status';
+
+      try {
+        const errorJson = JSON.parse(text);
+        errorMessage = errorJson.message || errorMessage;
+      } catch {
+        // Not JSON, keep default message
+      }
+
+      throw new Error(errorMessage);
+    }
+
+    // Success, you can handle the response as needed
+     toast({
+      title: "Success",
+      description: "Status updated successfully!",
+    });
+
+    // Close the modal after success
+    setIsModalVisible(false);
+    
+    // Optional: Clear the success message after a few seconds
+  } catch (error) {
+    console.error('Error updating status:', error);
+  }
+};
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -367,9 +437,6 @@ const DriverDashboard = () => {
     setIsChatOpen(true);
   };
 
-  const handleUpdateStatus = (deliveryId: string) => {
-    navigate(`/driver/deliveries/${deliveryId}/status`);
-  };
 
   const acceptDelivery = async (deliveryId: string) => {
     try {
@@ -594,16 +661,16 @@ const DriverDashboard = () => {
                 <CardDescription>Your latest earnings</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold">${dashboardData.stats.total_earnings.toFixed(2)}</div>
+                <div className="text-3xl font-bold"> ${Number(dashboardData.stats.total_earnings).toFixed(2)}</div>
                 <p className="text-muted-foreground text-sm">Total earnings</p>
 
                 <div className="grid grid-cols-2 gap-4 mt-4">
                   <div>
-                    <p className="text-xl font-semibold">${dashboardData.stats.today_earnings.toFixed(2)}</p>
+                    <p className="text-xl font-semibold">${Number(dashboardData.stats.today_earnings).toFixed(2)}</p>
                     <p className="text-muted-foreground text-sm">Today</p>
                   </div>
                   <div>
-                    <p className="text-xl font-semibold">${dashboardData.stats.week_earnings.toFixed(2)}</p>
+                    <p className="text-xl font-semibold">${Number(dashboardData.stats.week_earnings).toFixed(2)}</p>
                     <p className="text-muted-foreground text-sm">This week</p>
                   </div>
                 </div>
@@ -778,12 +845,9 @@ const DriverDashboard = () => {
                           <Button onClick={() => navigate(`/driver/deliveries/${dashboardData.active_delivery!.id}`)}>
                             View Details
                           </Button>
-                          <Button
-                              variant="outline"
-                              onClick={() => handleUpdateStatus(dashboardData.active_delivery!.id)}
-                          >
-                            Update Status
-                          </Button>
+                          <Button onClick={() => openStatusModal(dashboardData.active_delivery!.id)}>
+  Update Status
+</Button>
                         </div>
                       </div>
 
@@ -800,6 +864,38 @@ const DriverDashboard = () => {
                 </CardContent>
               </Card>
           )}
+          {/* Modal for status selection */}
+    {isModalOpen && (
+      <div className="fixed inset-0 bg-gray-500 bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white p-6 rounded-lg shadow-lg w-1/3">
+          <h3 className="text-xl font-semibold mb-4">Select Delivery Status</h3>
+          <select
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value)}
+            className="border p-2 w-full mb-4"
+          >
+            <option value="">-- Choose Status --</option>
+            <option value="in_transit">In Transit</option>
+            <option value="delivered">Delivered</option>
+          </select>
+
+          <div className="flex justify-between">
+            <Button
+              variant="outline"
+              onClick={closeStatusModal}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateStatus}
+            >
+              Update Status
+            </Button>
+            
+          </div>
+        </div>
+      </div>
+    )}
 
           {/* Recent Deliveries */}
           <Card>
@@ -946,7 +1042,7 @@ const DriverDashboard = () => {
                     <CardTitle className="text-lg">Today</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">${dashboardData.stats.today_earnings.toFixed(2)}</div>
+                    <div className="text-2xl font-bold">${Number(dashboardData.stats.today_earnings).toFixed(2)}</div>
                   </CardContent>
                 </Card>
                 <Card>
@@ -954,7 +1050,7 @@ const DriverDashboard = () => {
                     <CardTitle className="text-lg">This Week</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">${dashboardData.stats.week_earnings.toFixed(2)}</div>
+                    <div className="text-2xl font-bold">${Number(dashboardData.stats.week_earnings).toFixed(2)}</div>
                   </CardContent>
                 </Card>
                 <Card>
@@ -962,7 +1058,7 @@ const DriverDashboard = () => {
                     <CardTitle className="text-lg">Total</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">${dashboardData.stats.total_earnings.toFixed(2)}</div>
+                    <div className="text-2xl font-bold">${Number(dashboardData.stats.total_earnings).toFixed(2)}</div>
                   </CardContent>
                 </Card>
               </div>

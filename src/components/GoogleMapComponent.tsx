@@ -34,7 +34,7 @@ const GoogleMapComponent = ({
       const apiKey = "AIzaSyB2JuZEgEc3CFQIPRofW4cQuLWTtxQZjsc";
 
       const script = document.createElement("script");
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,geometry`;
       script.async = true;
       script.defer = true;
       script.onload = () => setMapLoaded(true);
