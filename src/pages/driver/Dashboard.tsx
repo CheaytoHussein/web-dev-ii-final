@@ -414,7 +414,7 @@ const DriverDashboard = () => {
         const dashboardData = await dashboardResponse.json();
         setDashboardData(dashboardData);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error accepting delivery:', error);
       toast({
         title: 'Error',

@@ -63,7 +63,7 @@ const DriverEarnings: React.FC = () => {
               ${earnings.todayEarnings.toFixed(2)}
             </p>
             <div className="mt-2 h-1 w-full bg-green-100 rounded-full">
-              <div className="h-1 bg-green-500 rounded-full" style={{ width: '75%' }}></div>
+              <div className="h-1 bg-green-500 rounded-full" style={{ width: '100%' }}></div>
             </div>
           </CardContent>
         </Card>
@@ -78,7 +78,7 @@ const DriverEarnings: React.FC = () => {
               ${earnings.todayEarnings.toFixed(2)}
             </p>
             <div className="mt-2 h-1 w-full bg-blue-100 rounded-full">
-              <div className="h-1 bg-blue-500 rounded-full" style={{ width: '75%' }}></div>
+              <div className="h-1 bg-blue-500 rounded-full" style={{ width: '100%' }}></div>
             </div>
           </CardContent>
         </Card>
@@ -93,7 +93,7 @@ const DriverEarnings: React.FC = () => {
               ${earnings.weekEarnings.toFixed(2)}
             </p>
             <div className="mt-2 h-1 w-full bg-purple-100 rounded-full">
-              <div className="h-1 bg-purple-500 rounded-full" style={{ width: '75%' }}></div>
+              <div className="h-1 bg-purple-500 rounded-full" style={{ width: '100%' }}></div>
             </div>
           </CardContent>
         </Card>
@@ -103,7 +103,7 @@ const DriverEarnings: React.FC = () => {
         <div className="bg-gray-50 p-4 rounded-lg">
           <h3 className="font-medium text-gray-700 mb-2">Earnings Summary</h3>
           <p className="text-sm text-gray-500">
-            Your earnings are updated in real-time. For detailed breakdown, check your weekly report.
+            Your earnings are updated in real-time.
           </p>
         </div>
       </div>
