@@ -76,6 +76,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ========== Driver Routes ==========
     Route::prefix('driver')->group(function () {
+        Route::get('/profile', [DriverController::class, 'getProfile'])->name('driver.profile');
+        Route::post('/profile', [DriverController::class, 'updateProfile'])->name('driver.profile.update');
+        Route::post('/profile/vehicle', [DriverController::class, 'updateVehicleInfo'])->name('driver.profile.vehicle.update');
         Route::get('/dashboard', [DriverController::class, 'getDashboard'])->name('driver.dashboard');
         Route::get('/deliveries', [DriverController::class, 'getDeliveries'])->name('driver.deliveries.index');
         Route::get('/deliveries/{id}', [DriverController::class, 'getDelivery'])->name('driver.deliveries.show');

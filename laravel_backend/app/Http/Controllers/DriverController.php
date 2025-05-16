@@ -600,6 +600,175 @@ class DriverController extends Controller
         }
     }
 
+
+
+
+    /**
+     * Get driver profile information
+     */
+    public function getProfile()
+    {
+        try {
+            $user = Auth::user();
+
+            if (!$user) {
+                return response()->json(['message' => 'Unauthenticated'], 401);
+            }
+
+            if (!$user->isDriver()) {
+                return response()->json(['message' => 'Unauthorized - User is not a driver'], 403);
+            }
+
+            $driverProfile = $user->driverProfile;
+            if (!$driverProfile) {
+                return response()->json(['message' => 'Driver profile not found'], 404);
+            }
+
+            return response()->json([
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                ],
+                'profile' => [
+                    'address' => $driverProfile->address,
+                    'vehicle_type' => $driverProfile->vehicle_type,
+                    'vehicle_model' => $driverProfile->vehicle_model,
+                    'vehicle_color' => $driverProfile->vehicle_color,
+                    'vehicle_plate_number' => $driverProfile->vehicle_plate_number,
+                    'driver_license' => $driverProfile->driver_license,
+                    'profile_picture' => $driverProfile->profile_picture,
+                    'rating' => (float)$driverProfile->rating,
+                    'is_verified' => (bool)$driverProfile->is_verified,
+                    'latitude' => $driverProfile->latitude,
+                    'longitude' => $driverProfile->longitude,
+                    'last_location_update' => $driverProfile->last_location_update,
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to load profile',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update driver profile information
+     */
+    public function updateProfile(Request $request)
+    {
+        try {
+            $user = Auth::user();
+
+            if (!$user) {
+                return response()->json(['message' => 'Unauthenticated'], 401);
+            }
+
+            if (!$user->isDriver()) {
+                return response()->json(['message' => 'Unauthorized - User is not a driver'], 403);
+            }
+
+            $validator = Validator::make($request->all(), [
+                'name' => 'sometimes|required|string|max:255',
+                'phone' => 'sometimes|required|string|max:20',
+                'address' => 'sometimes|required|string|max:500',
+                'driver_license' => 'sometimes|required|string|max:50',
+                'profile_picture' => 'sometimes|nullable|string|max:512',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['errors' => $validator->errors()], 422);
+            }
+
+            DB::transaction(function () use ($user, $request) {
+                // Update user table fields
+                if ($request->has('name')) {
+                    $user->name = $request->name;
+                }
+                if ($request->has('phone')) {
+                    $user->phone = $request->phone;
+                }
+                $user->save();
+
+                // Update driver profile fields
+                $profileData = [];
+                if ($request->has('address')) {
+                    $profileData['address'] = $request->address;
+                }
+                if ($request->has('driver_license')) {
+                    $profileData['driver_license'] = $request->driver_license;
+                }
+                if ($request->has('profile_picture')) {
+                    $profileData['profile_picture'] = $request->profile_picture;
+                }
+
+                if (!empty($profileData)) {
+                    $user->driverProfile()->update($profileData);
+                }
+            });
+
+            return response()->json([
+                'message' => 'Profile updated successfully',
+                'user' => $user->fresh(['driverProfile'])
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to update profile',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update driver vehicle information
+     */
+    public function updateVehicleInfo(Request $request)
+    {
+        try {
+            $user = Auth::user();
+
+            if (!$user) {
+                return response()->json(['message' => 'Unauthenticated'], 401);
+            }
+
+            if (!$user->isDriver()) {
+                return response()->json(['message' => 'Unauthorized - User is not a driver'], 403);
+            }
+
+            $validator = Validator::make($request->all(), [
+                'vehicle_type' => 'required|string|max:50',
+                'vehicle_model' => 'required|string|max:100',
+                'vehicle_color' => 'required|string|max:50',
+                'vehicle_plate_number' => 'required|string|max:20',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['errors' => $validator->errors()], 422);
+            }
+
+            $user->driverProfile()->update([
+                'vehicle_type' => $request->vehicle_type,
+                'vehicle_model' => $request->vehicle_model,
+                'vehicle_color' => $request->vehicle_color,
+                'vehicle_plate_number' => $request->vehicle_plate_number,
+            ]);
+
+            return response()->json([
+                'message' => 'Vehicle information updated successfully',
+                'profile' => $user->driverProfile
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to update vehicle information',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
     /**
      * Get driver notifications
      */
