@@ -178,10 +178,8 @@ const DriverLayout = ({ children }: DriverLayoutProps) => {
   const navLinks = [
     { path: "/driver/dashboard", label: "Dashboard", icon: <Package className="h-5 w-5" /> },
     { path: "/driver/deliveries", label: "Deliveries", icon: <Package className="h-5 w-5" /> },
-    { path: "/driver/schedule", label: "Schedule", icon: <Clock className="h-5 w-5" /> },
     { path: "/driver/earnings", label: "Earnings", icon: <CreditCard className="h-5 w-5" /> },
     { path: "/driver/profile", label: "Profile", icon: <User className="h-5 w-5" /> },
-    { path: "/driver/settings", label: "Settings", icon: <Settings className="h-5 w-5" /> },
   ];
 
   if (loading) {
