@@ -77,6 +77,8 @@ const DriverLayout = ({ children }: DriverLayoutProps) => {
       }
     };
 
+
+
     // Fetch notifications from API
     const fetchNotifications = async () => {
       try {
@@ -101,6 +103,8 @@ const DriverLayout = ({ children }: DriverLayoutProps) => {
     fetchUser();
     fetchNotifications();
   }, [navigate]);
+
+
 
   const handleLogout = async () => {
     try {
