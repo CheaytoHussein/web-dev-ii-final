@@ -721,7 +721,7 @@ const handleUpdateStatus = async () => {
                     <span>Available Jobs</span>
                   </div>
                   <Badge variant="outline" className="bg-purple-50">
-                    {dashboardData.stats.active_deliveries > 0 ? 0 : 5}
+                    {dashboardData.pending_deliveries?.length ?? 0}
                   </Badge>
                 </div>
               </CardContent>
